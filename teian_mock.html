@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>整備提案ツール</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* ===================== デザイントークン ===================== */
+    :root {
+      --c-orange:       #E57138;
+      --c-orange-press: #EA8B56;
+      --c-orange-l4:    #FADCC4;
+      --c-beige:        #FFF0D9;
+      --c-red:          #D92419;
+      --c-red-l4:       #F7D3D1;
+      --c-success:      #2E7D32;
+      --c-success-bg:   #E8F5E9;
+      --c-white:        #FFFFFF;
+      --c-black:        #000000;
+      --c-gray-dark:    #606060;
+      --c-gray-mid:     #888888;
+      --c-gray-light:   #F5F5F5;
+      --c-border:       #E0E0E0;
+      --font:           'Noto Sans JP', 'Hiragino Sans', sans-serif;
+      --r-md:  8px;
+      --r-lg:  12px;
+      --r-full:9999px;
+      --bw-sm: 1.5px;
+      --bw-md: 2.5px;
+      --sp-xs: 8px;
+      --sp-sm: 12px;
+      --sp-md: 16px;
+      --sp-lg: 24px;
+      --sp-xl: 32px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font);
+      font-size: 17px; /* 11インチiPad基準 */
+      color: var(--c-black);
+      background: var(--c-beige);
+      min-height: 100vh;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ===================== ヘッダー ===================== */
+    .app-header {
+      background: var(--c-orange);
+      color: var(--c-white);
+      padding: 0 var(--sp-lg);
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .app-header__title { font-size: 19px; font-weight: 700; letter-spacing: 0.04em; }
+    .app-header__time  { font-size: 13px; opacity: 0.92; }
+
+    /* ===================== タブバー ===================== */
+    .tab-bar {
+      background: var(--c-white);
+      display: flex;
+      border-bottom: var(--bw-sm) solid var(--c-border);
+      position: sticky;
+      top: 60px;
+      z-index: 99;
+    }
+    .tab-btn {
+      flex: 1;
+      height: 56px;
+      font-family: var(--font);
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--c-gray-dark);
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+      letter-spacing: 0.03em;
+    }
+    .tab-btn.active { color: var(--c-orange); border-bottom-color: var(--c-orange); }
+
+    /* ===================== コンテンツ ===================== */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .content-wrap {
+      max-width: 1100px; /* 11インチiPad landscape対応 */
+      margin: 0 auto;
+      padding: var(--sp-lg) var(--sp-md);
+    }
+
+    /* ===================== カード ===================== */
+    .card {
+      background: var(--c-white);
+      border-radius: var(--r-lg);
+      padding: var(--sp-lg);
+      margin-bottom: var(--sp-md);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .card__title {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-xs);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--c-gray-dark);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: var(--sp-md);
+    }
+    .card__title::before {
+      content: '';
+      display: block;
+      width: 4px;
+      height: 18px;
+      background: var(--c-orange);
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    /* ===================== ステップバー ===================== */
+    .step-bar {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-sm);
+      background: var(--c-beige);
+      border: var(--bw-sm) solid var(--c-orange-l4);
+      border-radius: var(--r-lg);
+      padding: var(--sp-sm) var(--sp-md);
+      margin-bottom: var(--sp-md);
+    }
+    .step-bar__badge {
+      background: var(--c-orange);
+      color: var(--c-white);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: var(--r-full);
+      white-space: nowrap;
+    }
+    .step-bar__badge--green { background: var(--c-success); }
+    .step-bar__name { font-size: 15px; font-weight: 700; flex: 1; }
+    .step-bar__sub  { font-size: 13px; color: var(--c-gray-dark); }
+
+    /* ===================== 顧客カード ===================== */
+    .customer-list { display: flex; flex-direction: column; gap: var(--sp-xs); }
+    .customer-card {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-md);
+      padding: var(--sp-md);
+      background: var(--c-white);
+      border: var(--bw-md) solid var(--c-border);
+      border-radius: var(--r-lg);
+      cursor: pointer;
+      min-height: 72px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .customer-card:hover, .customer-card.selected {
+      border-color: var(--c-orange);
+      background: var(--c-beige);
+    }
+    .customer-card__time {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--c-orange);
+      min-width: 64px;
+      text-align: center;
+    }
+    .customer-card__info { flex: 1; }
+    .customer-card__name { font-size: 18px; font-weight: 700; margin-bottom: 3px; }
+    .customer-card__sub  { font-size: 13px; color: var(--c-gray-dark); }
+
+    /* ===================== バッジ ===================== */
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: var(--r-full);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .badge--orange { background: var(--c-orange-l4); color: var(--c-orange); }
+    .badge--green  { background: var(--c-success-bg); color: var(--c-success); }
+    .badge--red    { background: var(--c-red-l4); color: var(--c-red); }
+    .badge--done   { background: var(--c-success-bg); color: var(--c-success); }
+
+    /* ===================== 部品選択 ===================== */
+    .parts-section { margin-bottom: var(--sp-lg); }
+    .parts-section__label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--c-gray-dark);
+      letter-spacing: 0.06em;
+      margin-bottom: var(--sp-sm);
+      padding-left: var(--sp-xs);
+    }
+    .parts-grid { display: flex; flex-wrap: wrap; gap: var(--sp-xs); }
+    .part-btn {
+      font-family: var(--font);
+      font-size: 15px;
+      font-weight: 700;
+      padding: 10px 20px;
+      height: 46px;
+      background: var(--c-white);
+      border: var(--bw-md) solid var(--c-border);
+      border-radius: var(--r-full);
+      color: var(--c-black);
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .part-btn:hover { border-color: var(--c-orange); color: var(--c-orange); background: var(--c-beige); }
+    .part-btn.selected { background: var(--c-orange); border-color: var(--c-orange); color: var(--c-white); }
+
+    /* ===================== 2カラム入力 ===================== */
+    .input-layout {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: var(--sp-md);
+    }
+
+    /* ===================== 写真アップロード ===================== */
+    .photo-upload-zone {
+      border: var(--bw-md) dashed var(--c-border);
+      border-radius: var(--r-lg);
+      background: var(--c-gray-light);
+      min-height: 110px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      transition: border-color 0.15s, background 0.15s;
+      margin-bottom: var(--sp-sm);
+    }
+    .photo-upload-zone:hover { border-color: var(--c-orange); background: var(--c-beige); }
+    .photo-upload-zone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .photo-upload-zone__icon { font-size: 30px; margin-bottom: 6px; }
+    .photo-upload-zone__text { font-size: 14px; color: var(--c-gray-dark); text-align: center; line-height: 1.5; }
+
+    .photo-thumbs { display: flex; flex-wrap: wrap; gap: var(--sp-xs); margin-bottom: var(--sp-sm); }
+    .photo-thumb-wrap { position: relative; }
+    .photo-thumb {
+      width: 88px; height: 88px; object-fit: cover;
+      border-radius: var(--r-md); border: var(--bw-sm) solid var(--c-border); display: block;
+    }
+    .photo-thumb-remove {
+      position: absolute; top: -7px; right: -7px;
+      width: 24px; height: 24px;
+      background: var(--c-red); color: var(--c-white);
+      border: none; border-radius: 50%; font-size: 14px; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ===================== フォーム要素 ===================== */
+    .form-group { margin-bottom: var(--sp-md); }
+    .form-label {
+      display: block; font-size: 13px; font-weight: 700;
+      color: var(--c-gray-dark); margin-bottom: var(--sp-xs);
+    }
+    textarea, input[type="number"], input[type="text"] {
+      width: 100%; font-family: var(--font); font-size: 16px;
+      border: var(--bw-md) solid var(--c-border); border-radius: var(--r-md);
+      padding: var(--sp-sm); outline: none; background: var(--c-white);
+      transition: border-color 0.15s; color: var(--c-black);
+    }
+    textarea:focus, input:focus { border-color: var(--c-orange); }
+    textarea { resize: none; line-height: 1.6; }
+
+    .price-wrap { position: relative; }
+    .price-wrap input { font-size: 26px; font-weight: 700; text-align: right; padding-left: 36px; padding-right: 44px; }
+    .price-prefix { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 17px; color: var(--c-gray-dark); font-weight: 700; pointer-events: none; }
+    .price-suffix { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 13px; color: var(--c-gray-mid); pointer-events: none; }
+
+    /* ===================== 追加済みリスト（右カラム） ===================== */
+    .saved-list { display: flex; flex-direction: column; gap: var(--sp-xs); }
+    .saved-item {
+      border: var(--bw-sm) solid var(--c-border);
+      border-radius: var(--r-md);
+      padding: var(--sp-sm);
+      background: var(--c-white);
+    }
+    .saved-item.editing {
+      border-color: var(--c-orange);
+      background: var(--c-beige);
+    }
+    .saved-item__head {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin-bottom: var(--sp-xs);
+    }
+    .saved-item__name { font-size: 14px; font-weight: 700; flex: 1; }
+    .saved-item__price { font-size: 14px; font-weight: 700; color: var(--c-orange); margin-left: 8px; }
+    .saved-item__actions { display: flex; gap: 6px; margin-top: 6px; }
+    .saved-item__thumbs { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+    .saved-item__thumb {
+      width: 40px; height: 40px; object-fit: cover;
+      border-radius: 6px; border: var(--bw-sm) solid var(--c-border);
+    }
+    .saved-item__comment { font-size: 12px; color: var(--c-gray-dark); margin-top: 6px; line-height: 1.5; }
+    .saved-empty { font-size: 13px; color: var(--c-gray-mid); text-align: center; padding: var(--sp-md); }
+
+    /* ===================== ボタン ===================== */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: var(--sp-xs); font-family: var(--font); font-weight: 700;
+      letter-spacing: 0.03em; border: none; border-radius: var(--r-full);
+      cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+    .btn--lg { height: 56px; padding: 0 var(--sp-xl); font-size: 17px; }
+    .btn--md { height: 46px; padding: 0 var(--sp-lg); font-size: 15px; }
+    .btn--sm { height: 36px; padding: 0 var(--sp-md); font-size: 13px; }
+    .btn--xs { height: 30px; padding: 0 var(--sp-sm); font-size: 12px; }
+    .btn--primary   { background: var(--c-orange); color: var(--c-white); }
+    .btn--primary:hover { background: var(--c-orange-press); }
+    .btn--secondary { background: var(--c-white); color: var(--c-orange); border: var(--bw-md) solid var(--c-orange); }
+    .btn--secondary:hover { background: var(--c-beige); }
+    .btn--work { background: var(--c-success); color: var(--c-white); }
+    .btn--work:hover { background: #1B5E20; }
+    .btn--edit { background: var(--c-white); color: var(--c-gray-dark); border: var(--bw-sm) solid var(--c-border); font-size: 12px; }
+    .btn--edit:hover { border-color: var(--c-orange); color: var(--c-orange); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+    .btn-row { display: flex; gap: var(--sp-sm); justify-content: flex-end; flex-wrap: wrap; margin-top: var(--sp-lg); }
+
+    /* ===================== フロント：部品リスト ===================== */
+    .part-list { display: flex; flex-direction: column; gap: var(--sp-sm); }
+    .part-list-item {
+      display: flex;
+      align-items: center;
+      padding: var(--sp-md) var(--sp-lg);
+      background: var(--c-white);
+      border: var(--bw-md) solid var(--c-border);
+      border-radius: var(--r-lg);
+      cursor: pointer;
+      min-height: 80px;
+      transition: all 0.15s;
+      gap: var(--sp-md);
+    }
+    .part-list-item:hover { border-color: var(--c-red); background: var(--c-red-l4); }
+    .part-list-item.done { opacity: 0.55; border-style: dashed; cursor: default; }
+    .part-list-item.done:hover { background: var(--c-white); border-color: var(--c-border); }
+    .part-list-item__icon { font-size: 28px; }
+    .part-list-item__info { flex: 1; }
+    .part-list-item__name { font-size: 19px; font-weight: 700; margin-bottom: 4px; }
+    .part-list-item__sub  { font-size: 13px; color: var(--c-gray-dark); }
+    .part-list-item__price { font-size: 22px; font-weight: 700; color: var(--c-red); }
+    .part-list-item__arrow { font-size: 20px; color: var(--c-gray-mid); }
+
+    /* ===================== 部品詳細フルスクリーンモーダル ===================== */
+    .part-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 500;
+      flex-direction: column;
+      background: var(--c-white);
+    }
+    .part-modal.show { display: flex; }
+
+    /* ヘッダー */
+    .part-modal__header {
+      background: var(--c-red);
+      color: var(--c-white);
+      padding: 0 var(--sp-lg);
+      height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .part-modal__header-left { display: flex; flex-direction: column; gap: 2px; }
+    .part-modal__part-name   { font-size: 22px; font-weight: 700; }
+    .part-modal__customer    { font-size: 13px; opacity: 0.88; }
+    .part-modal__price       { font-size: 28px; font-weight: 700; }
+    .part-modal__close {
+      background: rgba(255,255,255,0.2);
+      color: var(--c-white);
+      border: none;
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      margin-left: var(--sp-lg);
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .part-modal__close:hover { background: rgba(255,255,255,0.35); }
+
+    /* ボディ：左右2カラム */
+    .part-modal__body {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* 左70%：画像エリア */
+    .part-modal__image-area {
+      width: 70%;
+      position: relative;
+      background: #3A3A3C; /* ダークグレー（黒以外） */
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* 写真スライダー */
+    .part-modal__photos {
+      flex: 1;
+      overflow-x: auto;
+      display: flex;
+      align-items: stretch;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      scroll-behavior: smooth;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .part-modal__photos::-webkit-scrollbar { display: none; }
+
+    .part-modal__photo-slide {
+      flex-shrink: 0;
+      width: 100%;
+      min-height: 100%;
+      scroll-snap-align: start;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--sp-xl);
+    }
+    .part-modal__photo {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: var(--r-md);
+      display: block;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    }
+    .part-modal__no-photo {
+      color: #666;
+      font-size: 72px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: var(--sp-sm);
+    }
+    .part-modal__no-photo span { font-size: 16px; font-family: var(--font); color: #888; }
+
+    /* 矢印ナビゲーション */
+    .part-modal__nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255,255,255,0.18);
+      border: none;
+      color: var(--c-white);
+      font-size: 36px;
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 10;
+      transition: background 0.15s;
+      line-height: 1;
+    }
+    .part-modal__nav:hover { background: rgba(255,255,255,0.35); }
+    .part-modal__nav:disabled { opacity: 0.2; cursor: default; }
+    .part-modal__nav--prev { left: var(--sp-md); }
+    .part-modal__nav--next { right: var(--sp-md); }
+
+    /* ドット＋枚数インジケーター */
+    .part-modal__dots {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: var(--sp-sm);
+      padding: 12px var(--sp-lg);
+      flex-shrink: 0;
+    }
+    .part-modal__dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.3);
+      transition: background 0.2s, transform 0.2s;
+      flex-shrink: 0;
+    }
+    .part-modal__dot.active {
+      background: var(--c-white);
+      transform: scale(1.4);
+    }
+    .part-modal__photo-counter {
+      font-size: 13px;
+      color: rgba(255,255,255,0.6);
+      font-family: var(--font);
+      margin-left: var(--sp-sm);
+    }
+
+    /* 右30%：サイドパネル */
+    .part-modal__side {
+      width: 30%;
+      background: var(--c-white);
+      border-left: var(--bw-sm) solid var(--c-border);
+      display: flex;
+      flex-direction: column;
+    }
+    .part-modal__side-content {
+      flex: 1;
+      padding: var(--sp-lg);
+      overflow-y: auto;
+    }
+    .part-modal__side-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--c-gray-dark);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: var(--sp-sm);
+    }
+    .part-modal__comment-box {
+      font-size: 16px;
+      line-height: 1.7;
+      color: #333;
+      background: var(--c-gray-light);
+      border-radius: var(--r-md);
+      padding: var(--sp-sm) var(--sp-md);
+      min-height: 80px;
+    }
+    .part-modal__comment-box.no-comment {
+      color: var(--c-gray-mid);
+      font-style: italic;
+    }
+
+    /* 右下：ボタンエリア */
+    .part-modal__action-area {
+      padding: var(--sp-md);
+      border-top: var(--bw-sm) solid var(--c-border);
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-sm);
+    }
+    .btn--work-side {
+      width: 100%;
+      height: 54px;
+      font-size: 16px;
+      font-family: var(--font);
+      font-weight: 700;
+      background: var(--c-success);
+      color: var(--c-white);
+      border: none;
+      border-radius: var(--r-full);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn--work-side:hover    { background: #1B5E20; }
+    .btn--work-side:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--skip-side {
+      width: 100%;
+      height: 42px;
+      font-size: 14px;
+      font-family: var(--font);
+      font-weight: 700;
+      background: var(--c-white);
+      color: var(--c-gray-mid);
+      border: var(--bw-sm) solid var(--c-border);
+      border-radius: var(--r-full);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn--skip-side:hover { border-color: var(--c-gray-dark); color: var(--c-gray-dark); }
+    .btn--back-side {
+      width: 100%;
+      height: 42px;
+      font-size: 14px;
+      font-family: var(--font);
+      font-weight: 700;
+      background: var(--c-white);
+      color: var(--c-gray-dark);
+      border: var(--bw-sm) solid var(--c-border);
+      border-radius: var(--r-full);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn--back-side:hover { border-color: var(--c-orange); color: var(--c-orange); }
+
+    /* ===================== 完了画面 ===================== */
+    .complete-screen { text-align: center; padding: 48px var(--sp-lg); }
+    .complete-screen__icon  { font-size: 72px; margin-bottom: var(--sp-md); }
+    .complete-screen__title { font-size: 24px; font-weight: 700; margin-bottom: var(--sp-xs); }
+    .complete-screen__sub   { font-size: 15px; color: var(--c-gray-dark); margin-bottom: var(--sp-lg); line-height: 1.6; }
+    .chat-preview { background: var(--c-gray-light); border-radius: var(--r-lg); padding: var(--sp-md); text-align: left; margin-bottom: var(--sp-lg); }
+    .chat-preview__label { font-size: 12px; color: var(--c-gray-dark); margin-bottom: 8px; }
+    .chat-preview__body  { font-size: 15px; line-height: 1.9; }
+
+    /* ===================== トースト ===================== */
+    .toast {
+      position: fixed; bottom: 36px; left: 50%;
+      transform: translateX(-50%) translateY(120px);
+      background: rgba(0,0,0,0.85); color: var(--c-white);
+      padding: 14px 28px; border-radius: var(--r-full);
+      font-size: 15px; font-weight: 700; font-family: var(--font);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+      z-index: 9999; white-space: nowrap;
+      transition: transform 0.3s ease; pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast--orange { background: var(--c-orange); }
+
+    /* ===================== 確認モーダル ===================== */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5); z-index: 600;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: var(--c-white); border-radius: var(--r-lg);
+      padding: var(--sp-xl); max-width: 440px; width: 90%;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+    }
+    .modal__title { font-size: 20px; font-weight: 700; margin-bottom: var(--sp-sm); }
+    .modal__body  { font-size: 15px; line-height: 1.7; color: #333; margin-bottom: var(--sp-lg); }
+    .modal__btns  { display: flex; gap: var(--sp-sm); justify-content: flex-end; }
+
+    .divider { border: none; border-top: var(--bw-sm) solid var(--c-border); margin: var(--sp-md) 0; }
+    .empty-state { text-align: center; padding: 48px var(--sp-lg); color: var(--c-gray-mid); font-size: 15px; }
+    .empty-state__icon { font-size: 52px; margin-bottom: var(--sp-md); }
+  </style>
+</head>
+<body>
+
+<!-- ヘッダー -->
+<header class="app-header">
+  <span class="app-header__title">🔧 整備提案ツール</span>
+  <span class="app-header__time" id="js-clock"></span>
+</header>
+
+<!-- タブバー -->
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="mechanic">⚙️ メカニック入力</button>
+  <button class="tab-btn" data-tab="front">👤 フロント提案</button>
+</div>
+
+<!-- ===================== メカニックタブ ===================== -->
+<div id="tab-mechanic" class="tab-content active">
+
+  <!-- STEP1: 顧客選択 -->
+  <div id="mec-step1" class="content-wrap">
+    <div class="card">
+      <div class="card__title">本日の入庫予約（現在の時間帯）</div>
+      <div class="customer-list" id="js-customer-list"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn--primary btn--lg" id="js-go-step2" disabled onclick="goStep2()">
+        この顧客で入力を開始 →
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP2: 部品選択・入力 -->
+  <div id="mec-step2" class="content-wrap" style="display:none;">
+    <div class="step-bar">
+      <span class="step-bar__badge">入力中</span>
+      <span class="step-bar__name" id="js-step2-name"></span>
+      <span class="step-bar__sub"  id="js-step2-car"></span>
+    </div>
+
+    <div class="card">
+      <div class="card__title">提案する部品を選択</div>
+      <div class="parts-section">
+        <div class="parts-section__label">エンジン廻り</div>
+        <div class="parts-grid">
+          <button class="part-btn" data-part="エンジンオイル">エンジンオイル</button>
+          <button class="part-btn" data-part="オイルエレメント">オイルエレメント</button>
+          <button class="part-btn" data-part="エアクリーナー">エアクリーナー</button>
+          <button class="part-btn" data-part="クーラント（冷却水）">クーラント（冷却水）</button>
+          <button class="part-btn" data-part="バッテリー">バッテリー</button>
+          <button class="part-btn" data-part="ラジエーターキャップ">ラジエーターキャップ</button>
+          <button class="part-btn" data-part="スパークプラグ">スパークプラグ</button>
+          <button class="part-btn" data-part="トランスミッションオイル">トランスミッションオイル</button>
+          <button class="part-btn" data-part="ファンベルト">ファンベルト</button>
+          <button class="part-btn" data-part="タイミングベルト">タイミングベルト</button>
+        </div>
+      </div>
+      <div class="parts-section">
+        <div class="parts-section__label">足廻り</div>
+        <div class="parts-grid">
+          <button class="part-btn" data-part="タイヤ">タイヤ</button>
+          <button class="part-btn" data-part="タイヤローテーション">タイヤローテーション</button>
+          <button class="part-btn" data-part="デフオイル">デフオイル</button>
+          <button class="part-btn" data-part="ドライブシャフトブーツ">ドライブシャフトブーツ</button>
+          <button class="part-btn" data-part="タイロッドエンドブーツ">タイロッドエンドブーツ</button>
+        </div>
+      </div>
+      <div class="parts-section">
+        <div class="parts-section__label">ブレーキ廻り</div>
+        <div class="parts-grid">
+          <button class="part-btn" data-part="ブレーキオイル">ブレーキオイル</button>
+          <button class="part-btn" data-part="ブレーキメンテナンス">ブレーキメンテナンス</button>
+          <button class="part-btn" data-part="ブレーキパッド・シュー">ブレーキパッド・シュー</button>
+        </div>
+      </div>
+      <div class="parts-section">
+        <div class="parts-section__label">その他</div>
+        <div class="parts-grid">
+          <button class="part-btn" data-part="電球">電球</button>
+          <button class="part-btn" data-part="ワイパーゴム">ワイパーゴム</button>
+          <button class="part-btn" data-part="発炎筒">発炎筒</button>
+          <button class="part-btn" data-part="ガラスリペア">ガラスリペア</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 入力フォーム -->
+    <div class="card" id="js-input-form" style="display:none;">
+      <div class="card__title" id="js-form-title">部品名 の詳細入力</div>
+      <div class="input-layout">
+        <!-- 左：写真・コメント -->
+        <div>
+          <div class="form-group">
+            <label class="form-label">📷 写真（複数枚可）</label>
+            <div class="photo-upload-zone">
+              <input type="file" id="js-photo-input" accept="image/*" multiple onchange="handlePhotos(event)">
+              <div class="photo-upload-zone__icon">📷</div>
+              <div class="photo-upload-zone__text">タップして写真を選択<br><small>複数枚選択できます</small></div>
+            </div>
+            <div class="photo-thumbs" id="js-photo-thumbs"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">💬 コメント</label>
+            <textarea id="js-comment" rows="4" placeholder="例：タイヤ残溝 2mm。交換時期に来ています。"></textarea>
+          </div>
+        </div>
+        <!-- 右：金額・追加済みリスト -->
+        <div>
+          <div class="form-group">
+            <label class="form-label">💴 金額（税込）</label>
+            <div class="price-wrap">
+              <span class="price-prefix">¥</span>
+              <input type="number" id="js-price" placeholder="0" min="0" step="100">
+              <span class="price-suffix">円</span>
+            </div>
+          </div>
+          <hr class="divider">
+          <div class="card__title" style="margin-bottom:var(--sp-sm);">追加済み提案</div>
+          <div class="saved-list" id="js-saved-list">
+            <div class="saved-empty">まだ追加はありません</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn--secondary btn--md" onclick="addPart()">＋ 別の部品も追加</button>
+        <button class="btn btn--primary btn--lg" onclick="saveAndSend()">✅ 保存してフロントへ通知</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP3: 送信完了 -->
+  <div id="mec-step3" class="content-wrap" style="display:none;">
+    <div class="card">
+      <div class="complete-screen">
+        <div class="complete-screen__icon">✅</div>
+        <div class="complete-screen__title">フロントへ通知しました！</div>
+        <div class="complete-screen__sub" id="js-complete-sub"></div>
+        <div class="chat-preview">
+          <div class="chat-preview__label">📱 Google Chat 送信イメージ</div>
+          <div class="chat-preview__body" id="js-chat-preview"></div>
+        </div>
+        <button class="btn btn--secondary btn--lg" onclick="resetMechanic()">🔄 次の顧客を入力する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== フロントタブ ===================== -->
+<div id="tab-front" class="tab-content">
+
+  <!-- STEP1: 提案待ち一覧 -->
+  <div id="front-step1" class="content-wrap">
+    <div class="card">
+      <div class="card__title">提案待ち顧客一覧</div>
+      <div id="js-front-list">
+        <div class="empty-state">
+          <div class="empty-state__icon">📋</div>
+          メカニックからの提案が届くとここに表示されます
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP2: 部品別リスト -->
+  <div id="front-step2" class="content-wrap" style="display:none;">
+    <div class="step-bar">
+      <span class="step-bar__badge step-bar__badge--green">提案中</span>
+      <span class="step-bar__name" id="js-front-name"></span>
+      <button class="btn btn--secondary btn--sm" onclick="backToFrontList()" style="margin-left:auto;">← 一覧に戻る</button>
+    </div>
+    <div class="card">
+      <div class="card__title">提案部品一覧（タップして詳細・商談）</div>
+      <div class="part-list" id="js-part-list"></div>
+    </div>
+  </div>
+
+  <!-- STEP3: 完了 -->
+  <div id="front-step3" class="content-wrap" style="display:none;">
+    <div class="card">
+      <div class="complete-screen">
+        <div class="complete-screen__icon">🔔</div>
+        <div class="complete-screen__title">メカニックへ通知しました！</div>
+        <div class="complete-screen__sub" id="js-front-complete-sub"></div>
+        <div class="chat-preview">
+          <div class="chat-preview__label">📱 Google Chat 送信イメージ</div>
+          <div class="chat-preview__body" id="js-front-chat-preview"></div>
+        </div>
+        <button class="btn btn--secondary btn--lg" onclick="resetFront()">← 一覧に戻る</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== 部品詳細フルスクリーンモーダル ===================== -->
+<div class="part-modal" id="js-part-modal">
+
+  <!-- ヘッダー -->
+  <div class="part-modal__header">
+    <div class="part-modal__header-left">
+      <div class="part-modal__part-name" id="js-modal-part-name">部品名</div>
+      <div class="part-modal__customer"  id="js-modal-customer"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:var(--sp-md);margin-left:auto;">
+      <div class="part-modal__price" id="js-modal-price"></div>
+      <button class="part-modal__close" onclick="closePartModal()">✕</button>
+    </div>
+  </div>
+
+  <!-- ボディ：左右2カラム -->
+  <div class="part-modal__body">
+
+    <!-- 左70%：画像エリア -->
+    <div class="part-modal__image-area">
+      <div class="part-modal__photos" id="js-modal-photos"></div>
+
+      <!-- 矢印ナビ -->
+      <button class="part-modal__nav part-modal__nav--prev" id="js-nav-prev" onclick="slidePhoto(-1)">‹</button>
+      <button class="part-modal__nav part-modal__nav--next" id="js-nav-next" onclick="slidePhoto(1)">›</button>
+
+      <!-- ドット + 枚数 -->
+      <div class="part-modal__dots" id="js-modal-dots"></div>
+    </div>
+
+    <!-- 右30%：サイドパネル -->
+    <div class="part-modal__side">
+      <div class="part-modal__side-content">
+        <div class="part-modal__side-label">コメント</div>
+        <div class="part-modal__comment-box" id="js-modal-comment"></div>
+      </div>
+      <div class="part-modal__action-area">
+        <button class="btn--work-side" id="js-modal-work-btn" onclick="executeWorkFromModal()">
+          🔧 この部品の作業を実施する
+        </button>
+        <button class="btn--skip-side" onclick="closePartModal()">今回はやめておく</button>
+        <button class="btn--back-side" onclick="closePartModal()">← 戻る</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- トースト -->
+<div class="toast" id="js-toast"></div>
+
+<!-- 確認モーダル -->
+<div class="modal-overlay" id="js-confirm-modal">
+  <div class="modal">
+    <div class="modal__title">🔧 作業実施の確認</div>
+    <div class="modal__body" id="js-confirm-body"></div>
+    <div class="modal__btns">
+      <button class="btn btn--secondary btn--md" onclick="closeConfirm()">キャンセル</button>
+      <button class="btn btn--md" style="background:var(--c-success);color:#fff;" onclick="confirmWork()">作業実施</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== ダミーデータ =====================
+const DUMMY_CUSTOMERS = [
+  { id:1, time:'14:00', name:'田中 太郎',  car:'ホンダ N-BOX',    plate:'岐阜300あ1234', rank:'A' },
+  { id:2, time:'14:30', name:'鈴木 花子',  car:'ダイハツ タント', plate:'岐阜302い5678', rank:'B' },
+  { id:3, time:'14:00', name:'加藤 健二',  car:'スズキ ワゴンR',  plate:'岐阜500う9012', rank:'A' },
+];
+
+// ===================== 状態 =====================
+const app = {
+  selectedCustomer: null,
+  selectedPart: null,
+  editingIndex: null,      // 編集中の提案インデックス
+  photos: [],
+  savedProposals: [],      // [{part, comment, price, photos}]
+  frontProposals: [],      // [{customer, proposals:[{...status}]}]
+  frontSelectedIndex: null,
+  modalPartIndex: null,    // 現在表示中のモーダル部品インデックス
+};
+
+// ===================== 時計 =====================
+(function clock() {
+  const el = document.getElementById('js-clock');
+  const pad = n => String(n).padStart(2,'0');
+  const update = () => {
+    const d = new Date();
+    el.textContent = `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+  update();
+  setInterval(update, 1000);
+})();
+
+// ===================== タブ切り替え =====================
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ===================== トースト =====================
+function toast(msg, type) {
+  const el = document.getElementById('js-toast');
+  el.textContent = msg;
+  el.className = 'toast' + (type === 'orange' ? ' toast--orange' : '');
+  setTimeout(() => el.classList.add('show'), 10);
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ===================== メカニック STEP1 =====================
+function renderCustomerList() {
+  const list = document.getElementById('js-customer-list');
+  list.innerHTML = DUMMY_CUSTOMERS.map(c => `
+    <div class="customer-card" data-id="${c.id}" onclick="selectCustomer(${c.id})">
+      <div class="customer-card__time">${c.time}</div>
+      <div class="customer-card__info">
+        <div class="customer-card__name">${c.name} 様</div>
+        <div class="customer-card__sub">${c.car} ／ ${c.plate}</div>
+      </div>
+      <span class="badge badge--orange">ランク ${c.rank}</span>
+    </div>
+  `).join('');
+}
+
+function selectCustomer(id) {
+  app.selectedCustomer = DUMMY_CUSTOMERS.find(c => c.id === id);
+  document.querySelectorAll('.customer-card').forEach(el => el.classList.remove('selected'));
+  document.querySelector(`.customer-card[data-id="${id}"]`).classList.add('selected');
+  document.getElementById('js-go-step2').disabled = false;
+}
+
+function goStep2() {
+  if (!app.selectedCustomer) return;
+  document.getElementById('mec-step1').style.display = 'none';
+  document.getElementById('mec-step2').style.display = 'block';
+  document.getElementById('js-step2-name').textContent = app.selectedCustomer.name + ' 様';
+  document.getElementById('js-step2-car').textContent = app.selectedCustomer.car + ' / ' + app.selectedCustomer.plate;
+  app.savedProposals = [];
+  app.editingIndex = null;
+  resetForm();
+  updateSavedList();
+}
+
+// ===================== 部品ボタン =====================
+document.addEventListener('DOMContentLoaded', () => {
+  renderCustomerList();
+  document.querySelectorAll('.part-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (app.editingIndex !== null) return; // 編集中は新規選択不可
+      document.querySelectorAll('.part-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      app.selectedPart = btn.dataset.part;
+      app.photos = [];
+      clearFormFields();
+      document.getElementById('js-input-form').style.display = 'block';
+      document.getElementById('js-form-title').textContent = '📋 ' + app.selectedPart + ' の詳細入力';
+      document.getElementById('js-input-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+});
+
+// ===================== 写真 =====================
+function handlePhotos(e) {
+  Array.from(e.target.files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = ev => { app.photos.push({ name: file.name, dataUrl: ev.target.result }); renderThumbs(); };
+    reader.readAsDataURL(file);
+  });
+  e.target.value = '';
+}
+function renderThumbs() {
+  document.getElementById('js-photo-thumbs').innerHTML = app.photos.map((p, i) => `
+    <div class="photo-thumb-wrap">
+      <img class="photo-thumb" src="${p.dataUrl}" alt="${p.name}">
+      <button class="photo-thumb-remove" onclick="removePhoto(${i})">×</button>
+    </div>
+  `).join('');
+}
+function removePhoto(i) { app.photos.splice(i, 1); renderThumbs(); }
+
+// ===================== フォーム操作 =====================
+function clearFormFields() {
+  document.getElementById('js-photo-thumbs').innerHTML = '';
+  document.getElementById('js-comment').value = '';
+  document.getElementById('js-price').value = '';
+}
+
+function currentInputData() {
+  return {
+    part: app.selectedPart,
+    comment: document.getElementById('js-comment').value.trim(),
+    price: parseInt(document.getElementById('js-price').value) || 0,
+    photos: [...app.photos],
+    status: 'pending',
+  };
+}
+
+function resetForm() {
+  app.selectedPart = null;
+  app.editingIndex = null;
+  app.photos = [];
+  document.querySelectorAll('.part-btn').forEach(b => b.classList.remove('selected'));
+  clearFormFields();
+  document.getElementById('js-input-form').style.display = 'none';
+}
+
+// ===================== 追加（新規）=====================
+function addPart() {
+  if (!app.selectedPart) { toast('部品を選択してください', 'orange'); return; }
+  if (app.editingIndex !== null) {
+    updateProposal(); return;
+  }
+  app.savedProposals.push(currentInputData());
+  resetForm();
+  updateSavedList();
+  toast('追加しました。次の部品を選択してください', 'orange');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ===================== 編集モード =====================
+function editProposal(index) {
+  const p = app.savedProposals[index];
+  app.editingIndex = index;
+  app.selectedPart = p.part;
+  app.photos = [...p.photos];
+
+  // 部品ボタン選択状態
+  document.querySelectorAll('.part-btn').forEach(b => {
+    b.classList.toggle('selected', b.dataset.part === p.part);
+  });
+
+  // フォームに値を流し込む
+  document.getElementById('js-comment').value = p.comment;
+  document.getElementById('js-price').value = p.price || '';
+  renderThumbs();
+  document.getElementById('js-input-form').style.display = 'block';
+  document.getElementById('js-form-title').textContent = '✏️ ' + p.part + ' を編集中';
+
+  // ボタンラベルを変更
+  document.querySelector('#js-input-form .btn--secondary').textContent = '✔ 更新して別の部品を追加';
+  document.querySelector('#js-input-form .btn--primary').textContent = '✅ 更新して送信';
+
+  updateSavedList();
+  document.getElementById('js-input-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function updateProposal() {
+  if (app.editingIndex === null) return;
+  app.savedProposals[app.editingIndex] = currentInputData();
+  const idx = app.editingIndex;
+  app.editingIndex = null;
+
+  // ボタンラベルを戻す
+  document.querySelector('#js-input-form .btn--secondary').textContent = '＋ 別の部品も追加';
+  document.querySelector('#js-input-form .btn--primary').textContent = '✅ 保存してフロントへ通知';
+
+  resetForm();
+  updateSavedList();
+  toast('更新しました', 'orange');
+}
+
+// ===================== 追加済みリスト =====================
+function updateSavedList() {
+  const el = document.getElementById('js-saved-list');
+  if (!app.savedProposals.length) {
+    el.innerHTML = '<div class="saved-empty">まだ追加はありません</div>';
+    return;
+  }
+  el.innerHTML = app.savedProposals.map((p, i) => `
+    <div class="saved-item ${app.editingIndex === i ? 'editing' : ''}">
+      <div class="saved-item__head">
+        <span class="saved-item__name">🔧 ${p.part}</span>
+        <span class="saved-item__price">¥${p.price.toLocaleString()}</span>
+      </div>
+      <div class="saved-item__thumbs">
+        ${p.photos.length
+          ? p.photos.map(ph => `<img class="saved-item__thumb" src="${ph.dataUrl}" alt="">`).join('')
+          : '<span style="font-size:11px;color:var(--c-gray-mid);">写真なし</span>'
+        }
+      </div>
+      ${p.comment ? `<div class="saved-item__comment">${p.comment}</div>` : ''}
+      <div class="saved-item__actions">
+        ${app.editingIndex === i
+          ? '<span style="font-size:12px;color:var(--c-orange);font-weight:700;">編集中...</span>'
+          : `<button class="btn btn--edit btn--xs" onclick="editProposal(${i})">✏️ 編集</button>`
+        }
+      </div>
+    </div>
+  `).join('');
+}
+
+// ===================== 保存・送信 =====================
+function saveAndSend() {
+  if (app.editingIndex !== null) {
+    // 編集中なら先に更新
+    app.savedProposals[app.editingIndex] = currentInputData();
+    app.editingIndex = null;
+  } else {
+    if (!app.selectedPart && app.savedProposals.length === 0) {
+      toast('部品を選択してください', 'orange'); return;
+    }
+    if (app.selectedPart) {
+      app.savedProposals.push(currentInputData());
+    }
+  }
+  if (app.savedProposals.length === 0) { toast('部品を1つ以上追加してください', 'orange'); return; }
+
+  // フロント側に追加
+  const fp = {
+    customer: app.selectedCustomer,
+    proposals: app.savedProposals.map(p => ({ ...p, status: 'pending' })),
+    timestamp: new Date(),
+  };
+  app.frontProposals.push(fp);
+  updateFrontList();
+
+  const parts = app.savedProposals.map(p => p.part).join('・');
+  const total = app.savedProposals.reduce((s, p) => s + p.price, 0);
+
+  document.getElementById('mec-step2').style.display = 'none';
+  document.getElementById('mec-step3').style.display = 'block';
+  document.getElementById('js-complete-sub').textContent =
+    `${app.selectedCustomer.name} 様への提案を ${app.savedProposals.length} 件送信しました。`;
+  document.getElementById('js-chat-preview').innerHTML =
+    `<strong>【整備提案】</strong><br>` +
+    `👤 ${app.selectedCustomer.name} 様（${app.selectedCustomer.car}）<br>` +
+    `🔧 提案部品：${parts}<br>` +
+    `💴 合計金額：¥${total.toLocaleString()}<br>` +
+    `📋 フロントで内容をご確認ください。<br>` +
+    `<span style="color:var(--c-orange);">🔗 アプリを開く → [URL]</span>`;
+  toast('フロントへ通知を送りました！');
+}
+
+function resetMechanic() {
+  app.selectedCustomer = null;
+  app.savedProposals = [];
+  document.getElementById('mec-step3').style.display = 'none';
+  document.getElementById('mec-step1').style.display = 'block';
+  document.getElementById('js-go-step2').disabled = true;
+  document.querySelectorAll('.customer-card').forEach(el => el.classList.remove('selected'));
+  resetForm();
+}
+
+// ===================== フロント =====================
+function updateFrontList() {
+  const el = document.getElementById('js-front-list');
+  if (!app.frontProposals.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-state__icon">📋</div>メカニックからの提案が届くとここに表示されます</div>';
+    return;
+  }
+  el.innerHTML = '<div class="customer-list">' + app.frontProposals.map((fp, i) => {
+    const doneCount = fp.proposals.filter(p => p.status === 'done').length;
+    return `
+      <div class="customer-card" onclick="openFrontCustomer(${i})">
+        <div class="customer-card__time">${fp.customer.time}</div>
+        <div class="customer-card__info">
+          <div class="customer-card__name">${fp.customer.name} 様</div>
+          <div class="customer-card__sub">${fp.customer.car} ／ ${fp.proposals.length}件の提案${doneCount > 0 ? '（' + doneCount + '件完了）' : ''}</div>
+        </div>
+        <span class="badge badge--red">提案あり</span>
+      </div>`;
+  }).join('') + '</div>';
+}
+
+function openFrontCustomer(i) {
+  app.frontSelectedIndex = i;
+  const fp = app.frontProposals[i];
+  document.getElementById('front-step1').style.display = 'none';
+  document.getElementById('front-step2').style.display = 'block';
+  document.getElementById('js-front-name').textContent = fp.customer.name + ' 様';
+  renderPartList();
+}
+
+function renderPartList() {
+  const fp = app.frontProposals[app.frontSelectedIndex];
+  const list = document.getElementById('js-part-list');
+  list.innerHTML = fp.proposals.map((p, i) => {
+    const done = p.status === 'done';
+    return `
+      <div class="part-list-item ${done ? 'done' : ''}" onclick="${done ? '' : 'openPartModal(' + i + ')'}">
+        <div class="part-list-item__icon">${done ? '✅' : '🔧'}</div>
+        <div class="part-list-item__info">
+          <div class="part-list-item__name">${p.part}</div>
+          <div class="part-list-item__sub">${p.photos.length}枚の写真${p.comment ? ' ／ ' + p.comment.slice(0,30) + (p.comment.length > 30 ? '…' : '') : ''}</div>
+        </div>
+        <div class="part-list-item__price">¥${p.price.toLocaleString()}</div>
+        ${done
+          ? '<span class="badge badge--done" style="margin-left:12px;">作業実施済み</span>'
+          : '<div class="part-list-item__arrow">›</div>'
+        }
+      </div>`;
+  }).join('');
+}
+
+function backToFrontList() {
+  document.getElementById('front-step2').style.display = 'none';
+  document.getElementById('front-step1').style.display = 'block';
+}
+
+// ===================== 部品詳細モーダル =====================
+let currentPhotoIndex = 0;
+
+function openPartModal(partIndex) {
+  const fp = app.frontProposals[app.frontSelectedIndex];
+  const p  = fp.proposals[partIndex];
+  app.modalPartIndex = partIndex;
+  currentPhotoIndex  = 0;
+
+  document.getElementById('js-modal-part-name').textContent = '🔧 ' + p.part;
+  document.getElementById('js-modal-customer').textContent  = fp.customer.name + ' 様 ／ ' + fp.customer.car;
+  document.getElementById('js-modal-price').textContent     = '¥' + p.price.toLocaleString();
+
+  // 写真スライド生成
+  const photosEl = document.getElementById('js-modal-photos');
+  const dotsEl   = document.getElementById('js-modal-dots');
+  photosEl.onscroll = null;
+
+  if (p.photos.length) {
+    photosEl.innerHTML = p.photos.map(ph =>
+      `<div class="part-modal__photo-slide">
+        <img class="part-modal__photo" src="${ph.dataUrl}" alt="">
+      </div>`
+    ).join('');
+    photosEl.scrollLeft = 0;
+
+    if (p.photos.length > 1) {
+      // ドット + 枚数カウンター
+      dotsEl.innerHTML =
+        p.photos.map((_, i) =>
+          `<div class="part-modal__dot ${i === 0 ? 'active' : ''}"></div>`
+        ).join('') +
+        `<span class="part-modal__photo-counter" id="js-photo-counter">1 / ${p.photos.length}</span>`;
+
+      // スクロールで現在地を更新
+      photosEl.onscroll = () => {
+        const idx = Math.round(photosEl.scrollLeft / photosEl.clientWidth);
+        currentPhotoIndex = idx;
+        updatePhotoNav(p.photos.length);
+      };
+    } else {
+      dotsEl.innerHTML = ''; // 1枚のみはインジケーター不要
+    }
+  } else {
+    photosEl.innerHTML = `<div class="part-modal__no-photo">📷<span>写真はありません</span></div>`;
+    dotsEl.innerHTML   = '';
+  }
+
+  // 矢印ナビ初期状態
+  updatePhotoNav(p.photos.length);
+
+  // コメント
+  const commentEl = document.getElementById('js-modal-comment');
+  if (p.comment) {
+    commentEl.textContent = p.comment;
+    commentEl.className   = 'part-modal__comment-box';
+  } else {
+    commentEl.textContent = 'コメントなし';
+    commentEl.className   = 'part-modal__comment-box no-comment';
+  }
+
+  // 作業実施ボタン
+  const workBtn = document.getElementById('js-modal-work-btn');
+  workBtn.disabled    = (p.status === 'done');
+  workBtn.textContent = p.status === 'done' ? '✅ 作業実施済み' : '🔧 この部品の作業を実施する';
+
+  document.getElementById('js-part-modal').classList.add('show');
+}
+
+// 矢印でスライド移動
+function slidePhoto(dir) {
+  const fp    = app.frontProposals[app.frontSelectedIndex];
+  const p     = fp.proposals[app.modalPartIndex];
+  const total = p.photos.length;
+  currentPhotoIndex = Math.max(0, Math.min(total - 1, currentPhotoIndex + dir));
+
+  const photosEl = document.getElementById('js-modal-photos');
+  photosEl.scrollLeft = currentPhotoIndex * photosEl.clientWidth;
+  updatePhotoNav(total);
+}
+
+// ドット・矢印・カウンターを同期
+function updatePhotoNav(total) {
+  const dots = document.querySelectorAll('.part-modal__dot');
+  dots.forEach((d, i) => d.classList.toggle('active', i === currentPhotoIndex));
+
+  const counter = document.getElementById('js-photo-counter');
+  if (counter) counter.textContent = `${currentPhotoIndex + 1} / ${total}`;
+
+  const prevBtn = document.getElementById('js-nav-prev');
+  const nextBtn = document.getElementById('js-nav-next');
+  if (prevBtn) prevBtn.disabled = (currentPhotoIndex === 0 || total <= 1);
+  if (nextBtn) nextBtn.disabled = (currentPhotoIndex === total - 1 || total <= 1);
+
+  // 1枚のときは矢印を非表示
+  if (prevBtn) prevBtn.style.display = total > 1 ? 'flex' : 'none';
+  if (nextBtn) nextBtn.style.display = total > 1 ? 'flex' : 'none';
+}
+
+function closePartModal() {
+  document.getElementById('js-part-modal').classList.remove('show');
+}
+
+// モーダル内の作業実施ボタン → 確認モーダルを経由
+function executeWorkFromModal() {
+  const fp = app.frontProposals[app.frontSelectedIndex];
+  const p  = fp.proposals[app.modalPartIndex];
+  document.getElementById('js-confirm-body').innerHTML =
+    `<strong>${fp.customer.name} 様</strong> の<br>` +
+    `<strong style="font-size:18px;">「${p.part}」</strong><br><br>` +
+    `の作業を実施しますか？<br>メカニックへ通知が送られます。`;
+  document.getElementById('js-confirm-modal').classList.add('show');
+}
+
+function closeConfirm() {
+  document.getElementById('js-confirm-modal').classList.remove('show');
+}
+
+function confirmWork() {
+  closeConfirm();
+  const fp = app.frontProposals[app.frontSelectedIndex];
+  const p  = fp.proposals[app.modalPartIndex];
+
+  p.status = 'done';
+
+  // 作業実施ボタンを無効化
+  const workBtn = document.getElementById('js-modal-work-btn');
+  workBtn.disabled = true;
+  workBtn.textContent = '✅ 作業実施済み';
+
+  toast(`「${p.part}」の作業通知をメカニックへ送りました！`);
+
+  // チャット通知イメージ（コンソール確認用）
+  const chatMsg = `【作業実施】\n👤 ${fp.customer.name} 様（${fp.customer.car}）\n🔧 作業部品：${p.part}\n💴 金額：¥${p.price.toLocaleString()}\n✅ フロントが成約しました。作業をお願いします。`;
+  console.log('Google Chat通知（ダミー）:\n' + chatMsg);
+
+  // リストを更新
+  renderPartList();
+  updateFrontList();
+
+  // 全部完了したら一覧へ戻る
+  const allDone = fp.proposals.every(pr => pr.status === 'done');
+  if (allDone) {
+    setTimeout(() => {
+      closePartModal();
+      showAllDoneScreen(fp);
+    }, 800);
+  }
+}
+
+function showAllDoneScreen(fp) {
+  const parts = fp.proposals.map(p => p.part).join('・');
+  const total = fp.proposals.reduce((s, p) => s + p.price, 0);
+
+  app.frontProposals.splice(app.frontSelectedIndex, 1);
+  updateFrontList();
+
+  document.getElementById('front-step2').style.display = 'none';
+  document.getElementById('front-step3').style.display = 'block';
+  document.getElementById('js-front-complete-sub').textContent =
+    `${fp.customer.name} 様のすべての作業指示をメカニックへ通知しました。`;
+  document.getElementById('js-front-chat-preview').innerHTML =
+    `<strong>【作業実施・全完了】</strong><br>` +
+    `👤 ${fp.customer.name} 様（${fp.customer.car}）<br>` +
+    `🔧 作業部品：${parts}<br>` +
+    `💴 合計金額：¥${total.toLocaleString()}<br>` +
+    `✅ すべての提案で成約しました。作業をお願いします。`;
+}
+
+function resetFront() {
+  document.getElementById('front-step3').style.display = 'none';
+  document.getElementById('front-step1').style.display = 'block';
+}
+</script>
+</body>
+</html>
