@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>車検証記載変更ナビゲーター</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* ===================== デザイントークン ===================== */
+    :root {
+      --c-orange:       #E57138;
+      --c-orange-press: #EA8B56;
+      --c-orange-l4:    #FADCC4;
+      --c-beige:        #FFF0D9;
+      --c-blue:         #1565C0;
+      --c-blue-l4:      #E3F2FD;
+      --c-red:          #D92419;
+      --c-red-l4:       #F7D3D1;
+      --c-success:      #2E7D32;
+      --c-success-bg:   #E8F5E9;
+      --c-white:        #FFFFFF;
+      --c-black:        #1A1A1A;
+      --c-gray-dark:    #606060;
+      --c-gray-mid:     #888888;
+      --c-gray-light:   #F5F5F5;
+      --c-border:       #E0E0E0;
+      --font:           'Noto Sans JP', 'Hiragino Sans', sans-serif;
+      --r-md:  8px;
+      --r-lg:  12px;
+      --r-full:9999px;
+      --bw-sm: 1.5px;
+      --bw-md: 2.5px;
+      --sp-xs: 8px;
+      --sp-sm: 12px;
+      --sp-md: 16px;
+      --sp-lg: 24px;
+      --sp-xl: 32px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font);
+      font-size: 17px;
+      color: var(--c-black);
+      background: var(--c-beige);
+      min-height: 100vh;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ===================== ヘッダー ===================== */
+    .app-header {
+      background: var(--c-orange);
+      color: var(--c-white);
+      padding: 0 var(--sp-lg);
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .app-header__title { font-size: 18px; font-weight: 700; letter-spacing: 0.03em; }
+    .app-header__step  { font-size: 13px; opacity: 0.92; }
+
+    /* ===================== プログレスバー ===================== */
+    .progress-bar {
+      background: var(--c-orange-l4);
+      height: 6px;
+      position: sticky;
+      top: 60px;
+      z-index: 99;
+    }
+    .progress-bar__fill {
+      background: var(--c-orange);
+      height: 100%;
+      transition: width 0.4s ease;
+    }
+
+    /* ===================== コンテンツ ===================== */
+    .content {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: var(--sp-lg) var(--sp-md);
+    }
+
+    /* ===================== 画面切替 ===================== */
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* ===================== カード ===================== */
+    .card {
+      background: var(--c-white);
+      border-radius: var(--r-lg);
+      padding: var(--sp-lg);
+      margin-bottom: var(--sp-md);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
+    .card__title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--c-gray-dark);
+      margin-bottom: var(--sp-sm);
+      letter-spacing: 0.02em;
+    }
+
+    /* ===================== スタート画面 ===================== */
+    .start-hero {
+      text-align: center;
+      padding: var(--sp-xl) var(--sp-md);
+    }
+    .start-hero__icon {
+      font-size: 64px;
+      margin-bottom: var(--sp-md);
+    }
+    .start-hero__title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: var(--sp-sm);
+    }
+    .start-hero__subtitle {
+      font-size: 15px;
+      color: var(--c-gray-dark);
+      line-height: 1.7;
+    }
+
+    .notice-box {
+      background: var(--c-blue-l4);
+      border-left: 4px solid var(--c-blue);
+      border-radius: var(--r-md);
+      padding: var(--sp-md);
+      margin: var(--sp-md) 0;
+      font-size: 14px;
+      line-height: 1.8;
+      color: var(--c-black);
+    }
+    .notice-box strong { color: var(--c-blue); }
+
+    /* ===================== 選択ボタン ===================== */
+    .choice-grid {
+      display: grid;
+      gap: var(--sp-sm);
+    }
+    .choice-grid--2col { grid-template-columns: 1fr 1fr; }
+    .choice-grid--1col { grid-template-columns: 1fr; }
+
+    .choice-btn {
+      background: var(--c-white);
+      border: var(--bw-md) solid var(--c-border);
+      border-radius: var(--r-lg);
+      padding: var(--sp-md) var(--sp-sm);
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, transform 0.1s;
+      -webkit-user-select: none;
+    }
+    .choice-btn:active { transform: scale(0.97); }
+    .choice-btn.selected {
+      border-color: var(--c-orange);
+      background: var(--c-orange-l4);
+    }
+    .choice-btn__icon { font-size: 36px; margin-bottom: var(--sp-xs); }
+    .choice-btn__label {
+      font-size: 16px;
+      font-weight: 700;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .choice-btn__desc {
+      font-size: 12px;
+      color: var(--c-gray-mid);
+      line-height: 1.5;
+    }
+
+    /* 手続き選択（チェックボックス風） */
+    .proc-btn {
+      background: var(--c-white);
+      border: var(--bw-md) solid var(--c-border);
+      border-radius: var(--r-lg);
+      padding: var(--sp-md);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: var(--sp-md);
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .proc-btn.selected {
+      border-color: var(--c-orange);
+      background: var(--c-orange-l4);
+    }
+    .proc-btn__check {
+      width: 28px;
+      height: 28px;
+      border: 2px solid var(--c-border);
+      border-radius: 6px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      background: var(--c-white);
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .proc-btn.selected .proc-btn__check {
+      border-color: var(--c-orange);
+      background: var(--c-orange);
+      color: var(--c-white);
+    }
+    .proc-btn__icon { font-size: 28px; }
+    .proc-btn__text {}
+    .proc-btn__label {
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .proc-btn__desc {
+      font-size: 12px;
+      color: var(--c-gray-mid);
+      margin-top: 2px;
+    }
+
+    /* ===================== セクションタイトル ===================== */
+    .section-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: var(--sp-md);
+      display: flex;
+      align-items: center;
+      gap: var(--sp-sm);
+    }
+    .section-title__num {
+      background: var(--c-orange);
+      color: var(--c-white);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    /* ===================== フォーム ===================== */
+    .form-section {
+      margin-bottom: var(--sp-lg);
+    }
+    .form-section__title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--c-orange);
+      border-bottom: 2px solid var(--c-orange-l4);
+      padding-bottom: var(--sp-xs);
+      margin-bottom: var(--sp-sm);
+    }
+    .form-group {
+      margin-bottom: var(--sp-sm);
+    }
+    .form-label {
+      display: block;
+      font-size: 13px;
+      color: var(--c-gray-dark);
+      margin-bottom: 4px;
+      font-weight: 700;
+    }
+    .form-label .required {
+      color: var(--c-red);
+      margin-left: 4px;
+      font-size: 12px;
+    }
+    .form-input {
+      width: 100%;
+      border: var(--bw-sm) solid var(--c-border);
+      border-radius: var(--r-md);
+      padding: 12px var(--sp-sm);
+      font-size: 16px;
+      font-family: var(--font);
+      background: var(--c-white);
+      transition: border-color 0.15s;
+      -webkit-appearance: none;
+    }
+    .form-input:focus {
+      outline: none;
+      border-color: var(--c-orange);
+    }
+    select.form-input { cursor: pointer; }
+
+    /* ===================== 必要書類リスト ===================== */
+    .doc-list {
+      list-style: none;
+    }
+    .doc-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--sp-sm);
+      padding: var(--sp-sm) 0;
+      border-bottom: 1px solid var(--c-border);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+    .doc-list li:last-child { border-bottom: none; }
+    .doc-list__check { color: var(--c-orange); font-size: 18px; flex-shrink: 0; }
+    .doc-list__note { font-size: 12px; color: var(--c-gray-mid); }
+
+    /* ===================== 確認サマリー ===================== */
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: var(--sp-sm) 0;
+      border-bottom: 1px solid var(--c-border);
+      font-size: 15px;
+    }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-row__label { color: var(--c-gray-dark); font-size: 13px; }
+    .summary-row__value { font-weight: 700; text-align: right; }
+
+    .tag {
+      display: inline-block;
+      background: var(--c-orange-l4);
+      color: var(--c-orange);
+      border-radius: var(--r-full);
+      padding: 2px 10px;
+      font-size: 13px;
+      font-weight: 700;
+      margin: 2px;
+    }
+
+    /* ===================== 完了画面 ===================== */
+    .complete-hero {
+      text-align: center;
+      padding: var(--sp-xl) var(--sp-md);
+    }
+    .complete-hero__icon { font-size: 72px; margin-bottom: var(--sp-md); }
+    .complete-hero__title { font-size: 22px; font-weight: 700; margin-bottom: var(--sp-sm); }
+    .complete-hero__desc { font-size: 15px; color: var(--c-gray-dark); line-height: 1.8; }
+
+    /* ===================== ボタン ===================== */
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 18px;
+      border: none;
+      border-radius: var(--r-full);
+      font-family: var(--font);
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      transition: opacity 0.15s, transform 0.1s;
+      letter-spacing: 0.04em;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:active { transform: scale(0.98); }
+
+    .btn-primary {
+      background: var(--c-orange);
+      color: var(--c-white);
+    }
+    .btn-primary:disabled {
+      background: var(--c-border);
+      color: var(--c-gray-mid);
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: var(--c-white);
+      color: var(--c-orange);
+      border: var(--bw-md) solid var(--c-orange);
+    }
+    .btn-success {
+      background: var(--c-success);
+      color: var(--c-white);
+    }
+
+    .btn-row {
+      display: flex;
+      gap: var(--sp-sm);
+      margin-top: var(--sp-lg);
+    }
+    .btn-row .btn { flex: 1; }
+
+    /* ===================== 印刷プレビュー（モック） ===================== */
+    .print-preview {
+      background: var(--c-white);
+      border: 2px dashed var(--c-border);
+      border-radius: var(--r-lg);
+      padding: var(--sp-lg);
+      margin: var(--sp-md) 0;
+      text-align: center;
+    }
+    .print-preview__title {
+      font-size: 14px;
+      color: var(--c-gray-mid);
+      margin-bottom: var(--sp-sm);
+    }
+    .print-preview__doc {
+      background: var(--c-gray-light);
+      border: 1px solid var(--c-border);
+      border-radius: var(--r-md);
+      padding: var(--sp-md);
+      margin-bottom: var(--sp-sm);
+      display: flex;
+      align-items: center;
+      gap: var(--sp-sm);
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .print-preview__doc:hover { background: var(--c-orange-l4); }
+    .print-preview__doc-icon { font-size: 28px; }
+    .print-preview__doc-name { font-size: 15px; font-weight: 700; }
+    .print-preview__doc-note { font-size: 12px; color: var(--c-gray-mid); }
+  </style>
+</head>
+<body>
+
+<!-- ヘッダー -->
+<header class="app-header">
+  <span class="app-header__title">車検証記載変更ナビ</span>
+  <span class="app-header__step" id="headerStep"></span>
+</header>
+
+<!-- プログレスバー -->
+<div class="progress-bar">
+  <div class="progress-bar__fill" id="progressFill" style="width:0%"></div>
+</div>
+
+<!-- ===================== SCREEN 0: スタート ===================== -->
+<div class="screen active" id="screen-0">
+  <div class="content">
+    <div class="start-hero">
+      <div class="start-hero__icon">📋</div>
+      <div class="start-hero__title">車検証記載変更ナビゲーター</div>
+      <div class="start-hero__subtitle">
+        名義変更・所有権解除・住所変更・氏名変更など<br>
+        車検証の記載変更手続きをナビゲートします
+      </div>
+    </div>
+
+    <div class="notice-box">
+      <strong>【ご確認ください】</strong><br>
+      このツールは、お客様ご自身が手続きの必要事項を入力するためのものです。
+      入力内容はお客様ご自身でご確認・ご判断ください。<br>
+      スタッフは操作方法のご案内のみ行います。
+    </div>
+
+    <div class="card">
+      <div class="card__title">このツールでできること</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+        <div style="background:var(--c-gray-light);border-radius:8px;padding:12px;text-align:center;font-size:14px;">
+          <div style="font-size:24px;margin-bottom:4px;">📝</div>名義変更
+        </div>
+        <div style="background:var(--c-gray-light);border-radius:8px;padding:12px;text-align:center;font-size:14px;">
+          <div style="font-size:24px;margin-bottom:4px;">🔓</div>所有権解除
+        </div>
+        <div style="background:var(--c-gray-light);border-radius:8px;padding:12px;text-align:center;font-size:14px;">
+          <div style="font-size:24px;margin-bottom:4px;">🏠</div>住所変更
+        </div>
+        <div style="background:var(--c-gray-light);border-radius:8px;padding:12px;text-align:center;font-size:14px;">
+          <div style="font-size:24px;margin-bottom:4px;">👤</div>氏名変更
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" onclick="goTo(1)">はじめる</button>
+  </div>
+</div>
+
+<!-- ===================== SCREEN 1: 申請者区分 ===================== -->
+<div class="screen" id="screen-1">
+  <div class="content">
+    <div class="section-title">
+      <div class="section-title__num">1</div>
+      申請者の区分を選んでください
+    </div>
+
+    <div class="choice-grid choice-grid--2col">
+      <div class="choice-btn" id="btn-customer" onclick="selectApplicant('customer')">
+        <div class="choice-btn__icon">👤</div>
+        <span class="choice-btn__label">お客様の申請</span>
+        <span class="choice-btn__desc">お客様ご自身の車検証変更</span>
+      </div>
+      <div class="choice-btn" id="btn-company" onclick="selectApplicant('company')">
+        <div class="choice-btn__icon">🏢</div>
+        <span class="choice-btn__label">自社申請</span>
+        <span class="choice-btn__desc">買取車両・商品車・社有車</span>
+      </div>
+    </div>
+
+    <div id="notice-customer" style="display:none;margin-top:12px;">
+      <div class="notice-box">
+        <strong>お客様の申請について</strong><br>
+        お客様ご自身にiPadを操作いただき、必要事項をご入力ください。
+        スタッフは画面の操作方法のみご案内します。
+      </div>
+    </div>
+    <div id="notice-company" style="display:none;margin-top:12px;">
+      <div class="notice-box" style="border-color:var(--c-orange);background:var(--c-orange-l4);">
+        <strong>自社申請について</strong><br>
+        買取車両・商品車・社有車など、自社名義への変更です。
+        スタッフが入力します。
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goTo(0)">戻る</button>
+      <button class="btn btn-primary" id="btn-next-1" disabled onclick="goTo(2)">次へ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SCREEN 2: 車種選択 ===================== -->
+<div class="screen" id="screen-2">
+  <div class="content">
+    <div class="section-title">
+      <div class="section-title__num">2</div>
+      車種を選んでください
+    </div>
+
+    <div class="choice-grid choice-grid--2col">
+      <div class="choice-btn" id="btn-normal" onclick="selectCarType('normal')">
+        <div class="choice-btn__icon">🚗</div>
+        <span class="choice-btn__label">普通車</span>
+        <span class="choice-btn__desc">軽自動車以外<br>（登録車）</span>
+      </div>
+      <div class="choice-btn" id="btn-kei" onclick="selectCarType('kei')">
+        <div class="choice-btn__icon">🚙</div>
+        <span class="choice-btn__label">軽自動車</span>
+        <span class="choice-btn__desc">黄色ナンバー<br>軽四輪車</span>
+      </div>
+    </div>
+
+    <div id="authority-info" style="display:none;margin-top:12px;">
+      <div class="card" style="font-size:14px;color:var(--c-gray-dark);">
+        <div id="authority-text"></div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goTo(1)">戻る</button>
+      <button class="btn btn-primary" id="btn-next-2" disabled onclick="goTo(3)">次へ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SCREEN 3: 手続き選択 ===================== -->
+<div class="screen" id="screen-3">
+  <div class="content">
+    <div class="section-title">
+      <div class="section-title__num">3</div>
+      手続きを選んでください
+      <span style="font-size:13px;color:var(--c-gray-mid);font-weight:400;">複数選択可</span>
+    </div>
+
+    <div class="choice-grid choice-grid--1col">
+      <div class="proc-btn" id="proc-meigi" onclick="toggleProc('meigi')">
+        <div class="proc-btn__check" id="check-meigi"></div>
+        <div class="proc-btn__icon">📝</div>
+        <div class="proc-btn__text">
+          <div class="proc-btn__label">名義変更</div>
+          <div class="proc-btn__desc">車の所有者名義を別の方に変える（売買・譲渡など）</div>
+        </div>
+      </div>
+      <div class="proc-btn" id="proc-shoyuken" onclick="toggleProc('shoyuken')">
+        <div class="proc-btn__check" id="check-shoyuken"></div>
+        <div class="proc-btn__icon">🔓</div>
+        <div class="proc-btn__text">
+          <div class="proc-btn__label">所有権解除</div>
+          <div class="proc-btn__desc">ローン完済後に信販会社・ディーラーの所有権を外す</div>
+        </div>
+      </div>
+      <div class="proc-btn" id="proc-jusho" onclick="toggleProc('jusho')">
+        <div class="proc-btn__check" id="check-jusho"></div>
+        <div class="proc-btn__icon">🏠</div>
+        <div class="proc-btn__text">
+          <div class="proc-btn__label">住所変更</div>
+          <div class="proc-btn__desc">引越しなどで住所が変わった場合に変更する</div>
+        </div>
+      </div>
+      <div class="proc-btn" id="proc-shimei" onclick="toggleProc('shimei')">
+        <div class="proc-btn__check" id="check-shimei"></div>
+        <div class="proc-btn__icon">👤</div>
+        <div class="proc-btn__text">
+          <div class="proc-btn__label">氏名変更</div>
+          <div class="proc-btn__desc">婚姻・離婚・改名等で氏名が変わった場合に変更する</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goTo(2)">戻る</button>
+      <button class="btn btn-primary" id="btn-next-3" disabled onclick="goTo(4)">次へ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SCREEN 4: 必要書類案内 ===================== -->
+<div class="screen" id="screen-4">
+  <div class="content">
+    <div class="section-title">
+      <div class="section-title__num">4</div>
+      必要書類のご確認
+    </div>
+
+    <div class="notice-box" style="background:var(--c-red-l4);border-color:var(--c-red);">
+      <strong style="color:var(--c-red);">手続き前に書類をご準備ください</strong><br>
+      以下の書類が揃っていることをご確認のうえ、次へ進んでください。
+    </div>
+
+    <div id="doc-list-area"></div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goTo(3)">戻る</button>
+      <button class="btn btn-primary" onclick="goTo(5)">書類が揃いました　→</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SCREEN 5: 入力フォーム ===================== -->
+<div class="screen" id="screen-5">
+  <div class="content">
+    <div class="section-title">
+      <div class="section-title__num">5</div>
+      必要事項の入力
+    </div>
+
+    <!-- 車両情報（共通） -->
+    <div class="card">
+      <div class="form-section">
+        <div class="form-section__title">🚗 車両情報（共通）</div>
+        <div class="form-group">
+          <label class="form-label">登録番号（ナンバー）<span class="required">必須</span></label>
+          <input type="text" class="form-input" placeholder="例：岐阜 500 あ 1234">
+        </div>
+        <div class="form-group">
+          <label class="form-label">車台番号<span class="required">必須</span></label>
+          <input type="text" class="form-input" placeholder="例：ABC-1234567">
+        </div>
+      </div>
+    </div>
+
+    <!-- 名義変更フォーム -->
+    <div id="form-meigi" style="display:none;">
+      <div class="card">
+        <div class="form-section">
+          <div class="form-section__title">📝 名義変更 — 現在の所有者</div>
+          <div class="form-group">
+            <label class="form-label">氏名・法人名<span class="required">必須</span></label>
+            <input type="text" class="form-input" placeholder="例：山田 太郎">
+          </div>
+          <div class="form-group">
+            <label class="form-label">住所<span class="required">必須</span></label>
+            <input type="text" class="form-input" placeholder="例：岐阜県可児市○○1-2-3">
+          </div>
+        </div>
+        <div class="form-section">
+          <div class="form-section__title">📝 名義変更 — 新しい所有者</div>
+          <div class="form-group">
+            <label class="form-label">氏名・法人名<span class="required">必須</span></label>
+            <input type="text" class="form-input" placeholder="例：鈴木 花子">
+          </div>
+          <div class="form-group">
+            <label class="form-label">郵便番号<span class="required">必須</span></label>
+            <input type="text" class="form-input" placeholder="例：509-0123">
+          </div>
+          <div class="form-group">
+            <label class="form-label">住所<span class="required">必須</span></label>
+            <input type="text" class="form-input" placeholder="例：岐阜県可児市○○4-5-6">
+          </div>
+          <div class="form-group">
+            <label class="form-label">電話番号</label>
+            <input type="tel" class="form-input" placeholder="例：0574-00-0000">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 所有権解除フォーム -->
+    <div id="form-shoyuken" style="display:none;">
+      <div class="card">
+        <div class="form-section">
+          <div class="form-section__title">🔓 所有権解除 — 現在の所有権者</div>
+          <div class="form-group">
+            <label class="form-label">所有権者（信販・ディーラー等）名<span class="required">必須</span></label>
+            <input type="text" class="form-input" placeholder="例：○○クレジット株式会社">
+          </div>
+        </div>
+        <div class="form-section">
+          <div class="form-section__title">🔓 所有権解除 — 新しい所有者（使用者）</div>
+          <div class="form-group">
+            <label class="form-label">氏名<span class="required">必須</span></label>
+            <input type="text" class="form-input" placeholder="例：田中 一郎">
+          </div>
+          <div class="form-group">
+            <label class="form-label">住所<span class="required">必須</span></label>
+            <input type="text" class="form-input" placeholder="例：岐阜県各務原市○○7-8-9">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 住所変更フォーム -->
+    <div id="form-jusho" style="display:none;">
+      <div class="card">
+        <div class="form-section">
+          <div class="form-section__title">🏠 住所変更</div>
+          <div class="form-group">
+            <label class="form-label">氏名<span class="required">必須</span></label>
+            <input type="text" class="form-input" placeholder="例：伊藤 二郎">
+          </div>
+          <div class="form-group">
+            <label class="form-label">変更前の住所<span class="required">必須</span></label>
+            <input type="text" class="form-input" placeholder="例：岐阜県可児市旧町1-1">
+          </div>
+          <div class="form-group">
+            <label class="form-label">変更後の住所（新住所）<span class="required">必須</span></label>
+            <input type="text" class="form-input" placeholder="例：岐阜県可児市新町2-2">
+          </div>
+          <div class="form-group">
+            <label class="form-label">変更年月日<span class="required">必須</span></label>
+            <input type="date" class="form-input">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 氏名変更フォーム -->
+    <div id="form-shimei" style="display:none;">
+      <div class="card">
+        <div class="form-section">
+          <div class="form-section__title">👤 氏名変更</div>
+          <div class="form-group">
+            <label class="form-label">変更前の氏名<span class="required">必須</span></label>
+            <input type="text" class="form-input" placeholder="例：佐藤 花子">
+          </div>
+          <div class="form-group">
+            <label class="form-label">変更後の氏名<span class="required">必須</span></label>
+            <input type="text" class="form-input" placeholder="例：鈴木 花子">
+          </div>
+          <div class="form-group">
+            <label class="form-label">変更理由<span class="required">必須</span></label>
+            <select class="form-input">
+              <option value="">選択してください</option>
+              <option>婚姻</option>
+              <option>離婚</option>
+              <option>養子縁組</option>
+              <option>その他</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">変更年月日<span class="required">必須</span></label>
+            <input type="date" class="form-input">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goTo(4)">戻る</button>
+      <button class="btn btn-primary" onclick="goTo(6)">入力内容を確認する</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SCREEN 6: 確認画面 ===================== -->
+<div class="screen" id="screen-6">
+  <div class="content">
+    <div class="section-title">
+      <div class="section-title__num">6</div>
+      入力内容の確認
+    </div>
+
+    <div class="notice-box">
+      以下の内容でよろしければ「書類を作成する」を押してください。
+    </div>
+
+    <div class="card">
+      <div class="card__title">申請情報</div>
+      <div class="summary-row">
+        <span class="summary-row__label">申請者区分</span>
+        <span class="summary-row__value" id="confirm-applicant">—</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-row__label">車種</span>
+        <span class="summary-row__value" id="confirm-cartype">—</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-row__label">手続き内容</span>
+        <span class="summary-row__value" id="confirm-procs">—</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__title">入力内容（代表）</div>
+      <div class="summary-row">
+        <span class="summary-row__label">登録番号</span>
+        <span class="summary-row__value">岐阜 500 あ 1234</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-row__label">車台番号</span>
+        <span class="summary-row__value">ABC-1234567</span>
+      </div>
+    </div>
+
+    <div style="background:var(--c-red-l4);border-radius:var(--r-md);padding:var(--sp-md);margin-bottom:var(--sp-md);font-size:14px;line-height:1.8;">
+      <strong style="color:var(--c-red);">申請者確認</strong><br>
+      上記の内容に間違いがないことを確認のうえ、ご自身の判断で「書類を作成する」を押してください。
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goTo(5)">修正する</button>
+      <button class="btn btn-primary" onclick="goTo(7)">書類を作成する</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SCREEN 7: 完了・書類出力 ===================== -->
+<div class="screen" id="screen-7">
+  <div class="content">
+    <div class="complete-hero">
+      <div class="complete-hero__icon">✅</div>
+      <div class="complete-hero__title">書類の準備ができました</div>
+      <div class="complete-hero__desc">
+        以下の書類をタップして印刷してください<br>
+        印刷後、申請窓口へお持ちください
+      </div>
+    </div>
+
+    <div class="print-preview">
+      <div class="print-preview__title">作成された書類</div>
+      <div class="print-preview__doc" onclick="alertPrint('第1号様式（移転登録申請書）')">
+        <div class="print-preview__doc-icon">📄</div>
+        <div>
+          <div class="print-preview__doc-name">第1号様式（移転登録申請書）</div>
+          <div class="print-preview__doc-note">普通車 名義変更用　｜　タップして印刷</div>
+        </div>
+      </div>
+      <div id="doc-shoyuken-pdf" class="print-preview__doc" style="display:none;" onclick="alertPrint('所有権解除申請書')">
+        <div class="print-preview__doc-icon">📄</div>
+        <div>
+          <div class="print-preview__doc-name">所有権解除申請書</div>
+          <div class="print-preview__doc-note">タップして印刷</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="font-size:14px;color:var(--c-gray-dark);line-height:1.8;">
+      <div class="card__title">申請窓口</div>
+      <div id="window-info"></div>
+    </div>
+
+    <div style="margin-top:var(--sp-md);">
+      <button class="btn btn-secondary" onclick="resetAll()">最初に戻る</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ===================== 状態管理 =====================
+  const state = {
+    applicant: null,   // 'customer' or 'company'
+    carType: null,     // 'normal' or 'kei'
+    procs: new Set()   // 選択した手続き
+  };
+
+  const STEPS = ['', 'STEP 1/6', 'STEP 2/6', 'STEP 3/6', 'STEP 4/6', 'STEP 5/6', 'STEP 6/6', '完了'];
+  const PROGRESS = [0, 14, 28, 42, 56, 70, 86, 100];
+
+  // ===================== 画面遷移 =====================
+  function goTo(screenNum) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + screenNum).classList.add('active');
+    document.getElementById('headerStep').textContent = STEPS[screenNum] || '';
+    document.getElementById('progressFill').style.width = PROGRESS[screenNum] + '%';
+    window.scrollTo(0, 0);
+
+    if (screenNum === 4) buildDocList();
+    if (screenNum === 5) buildForms();
+    if (screenNum === 6) buildConfirm();
+    if (screenNum === 7) buildComplete();
+  }
+
+  // ===================== SCREEN 1: 申請者区分 =====================
+  function selectApplicant(type) {
+    state.applicant = type;
+    document.querySelectorAll('#screen-1 .choice-btn').forEach(b => b.classList.remove('selected'));
+    document.getElementById('btn-' + type).classList.add('selected');
+    document.getElementById('notice-customer').style.display = type === 'customer' ? 'block' : 'none';
+    document.getElementById('notice-company').style.display  = type === 'company'  ? 'block' : 'none';
+    document.getElementById('btn-next-1').disabled = false;
+  }
+
+  // ===================== SCREEN 2: 車種選択 =====================
+  function selectCarType(type) {
+    state.carType = type;
+    document.querySelectorAll('#screen-2 .choice-btn').forEach(b => b.classList.remove('selected'));
+    document.getElementById('btn-' + type).classList.add('selected');
+    document.getElementById('btn-next-2').disabled = false;
+
+    const info = document.getElementById('authority-info');
+    const text = document.getElementById('authority-text');
+    info.style.display = 'block';
+    if (type === 'normal') {
+      text.innerHTML = '📍 <strong>申請窓口：</strong>国土交通省 中部運輸局 岐阜運輸支局<br>（各務原市蘇原古市場町2-2）';
+    } else {
+      text.innerHTML = '📍 <strong>申請窓口：</strong>軽自動車検査協会 岐阜事務所<br>（岐阜市粟野東2-115-1）';
+    }
+  }
+
+  // ===================== SCREEN 3: 手続き選択 =====================
+  function toggleProc(key) {
+    if (state.procs.has(key)) {
+      state.procs.delete(key);
+      document.getElementById('proc-' + key).classList.remove('selected');
+      document.getElementById('check-' + key).textContent = '';
+    } else {
+      state.procs.add(key);
+      document.getElementById('proc-' + key).classList.add('selected');
+      document.getElementById('check-' + key).textContent = '✓';
+    }
+    document.getElementById('btn-next-3').disabled = state.procs.size === 0;
+  }
+
+  // ===================== SCREEN 4: 必要書類 =====================
+  const DOC_MAP = {
+    meigi: {
+      label: '名義変更',
+      normal: [
+        { name: '移転登録申請書（第1号様式）', note: '窓口で配布' },
+        { name: '自動車検査証（車検証）', note: '現物' },
+        { name: '譲渡証明書', note: '旧所有者の実印を押印' },
+        { name: '旧所有者の印鑑証明書', note: '発行3ヶ月以内' },
+        { name: '新所有者の印鑑証明書', note: '発行3ヶ月以内' },
+        { name: '自動車税申告書', note: '窓口で配布' },
+        { name: '手数料納付書', note: '窓口で配布' },
+      ],
+      kei: [
+        { name: '軽自動車移転登録申請書', note: '窓口で配布' },
+        { name: '自動車検査証（車検証）', note: '現物' },
+        { name: '旧所有者の住民票または印鑑証明', note: '発行3ヶ月以内' },
+        { name: '新所有者の住民票または印鑑証明', note: '発行3ヶ月以内' },
+        { name: '軽自動車税申告書', note: '窓口で配布' },
+      ]
+    },
+    shoyuken: {
+      label: '所有権解除',
+      normal: [
+        { name: '申請書（第1号様式）', note: '窓口で配布' },
+        { name: '自動車検査証（車検証）', note: '現物' },
+        { name: '所有権解除書類（完済証明等）', note: '信販会社等から取得' },
+        { name: '所有者の印鑑証明書', note: '信販会社が用意する場合あり' },
+        { name: '使用者の印鑑証明書', note: '発行3ヶ月以内' },
+      ],
+      kei: [
+        { name: '軽自動車申請書', note: '窓口で配布' },
+        { name: '自動車検査証（車検証）', note: '現物' },
+        { name: '所有権解除書類', note: '信販会社等から取得' },
+        { name: '使用者の住民票', note: '発行3ヶ月以内' },
+      ]
+    },
+    jusho: {
+      label: '住所変更',
+      normal: [
+        { name: '変更登録申請書（第1号様式）', note: '窓口で配布' },
+        { name: '自動車検査証（車検証）', note: '現物' },
+        { name: '新住所の住民票', note: '発行3ヶ月以内' },
+        { name: '自動車検査証記入申請書', note: '窓口で配布' },
+      ],
+      kei: [
+        { name: '軽自動車申告書', note: '窓口で配布' },
+        { name: '自動車検査証（車検証）', note: '現物' },
+        { name: '新住所の住民票', note: '発行3ヶ月以内' },
+      ]
+    },
+    shimei: {
+      label: '氏名変更',
+      normal: [
+        { name: '変更登録申請書（第1号様式）', note: '窓口で配布' },
+        { name: '自動車検査証（車検証）', note: '現物' },
+        { name: '氏名変更を証明する書類', note: '戸籍謄本・住民票など' },
+        { name: '印鑑証明書', note: '発行3ヶ月以内・新氏名で取得' },
+      ],
+      kei: [
+        { name: '軽自動車申告書', note: '窓口で配布' },
+        { name: '自動車検査証（車検証）', note: '現物' },
+        { name: '氏名変更を証明する書類', note: '戸籍謄本・住民票など' },
+        { name: '新氏名の住民票', note: '発行3ヶ月以内' },
+      ]
+    }
+  };
+
+  function buildDocList() {
+    const area = document.getElementById('doc-list-area');
+    area.innerHTML = '';
+    const carKey = state.carType === 'normal' ? 'normal' : 'kei';
+
+    state.procs.forEach(proc => {
+      const data = DOC_MAP[proc];
+      if (!data) return;
+      const docs = data[carKey];
+      const html = `
+        <div class="card">
+          <div class="card__title">${data.label} の必要書類</div>
+          <ul class="doc-list">
+            ${docs.map(d => `
+              <li>
+                <span class="doc-list__check">✔</span>
+                <div>
+                  <div>${d.name}</div>
+                  <div class="doc-list__note">${d.note}</div>
+                </div>
+              </li>
+            `).join('')}
+          </ul>
+        </div>
+      `;
+      area.insertAdjacentHTML('beforeend', html);
+    });
+  }
+
+  // ===================== SCREEN 5: フォーム表示 =====================
+  function buildForms() {
+    ['meigi','shoyuken','jusho','shimei'].forEach(key => {
+      document.getElementById('form-' + key).style.display =
+        state.procs.has(key) ? 'block' : 'none';
+    });
+  }
+
+  // ===================== SCREEN 6: 確認 =====================
+  function buildConfirm() {
+    document.getElementById('confirm-applicant').textContent =
+      state.applicant === 'customer' ? 'お客様の申請' : '自社申請';
+    document.getElementById('confirm-cartype').textContent =
+      state.carType === 'normal' ? '普通車' : '軽自動車';
+
+    const procLabels = { meigi:'名義変更', shoyuken:'所有権解除', jusho:'住所変更', shimei:'氏名変更' };
+    const tags = [...state.procs].map(p => `<span class="tag">${procLabels[p]}</span>`).join('');
+    document.getElementById('confirm-procs').innerHTML = tags;
+  }
+
+  // ===================== SCREEN 7: 完了 =====================
+  function buildComplete() {
+    const windowEl = document.getElementById('window-info');
+    if (state.carType === 'normal') {
+      windowEl.innerHTML = '国土交通省 中部運輸局 <strong>岐阜運輸支局</strong><br>岐阜県各務原市蘇原古市場町2-2<br>受付時間：8:45〜11:45 / 13:00〜16:00（土日祝休）';
+    } else {
+      windowEl.innerHTML = '軽自動車検査協会 <strong>岐阜事務所</strong><br>岐阜県岐阜市粟野東2-115-1<br>受付時間：8:45〜11:45 / 12:45〜15:45（土日祝休）';
+    }
+
+    document.getElementById('doc-shoyuken-pdf').style.display =
+      state.procs.has('shoyuken') ? 'flex' : 'none';
+  }
+
+  function alertPrint(docName) {
+    alert(`【モック】\n「${docName}」\nを印刷します。\n\n実装時はPDFを生成・表示します。`);
+  }
+
+  function resetAll() {
+    state.applicant = null;
+    state.carType = null;
+    state.procs.clear();
+    document.querySelectorAll('.choice-btn').forEach(b => b.classList.remove('selected'));
+    document.querySelectorAll('.proc-btn').forEach(b => b.classList.remove('selected'));
+    document.querySelectorAll('.proc-btn__check').forEach(b => b.textContent = '');
+    document.getElementById('btn-next-1').disabled = true;
+    document.getElementById('btn-next-2').disabled = true;
+    document.getElementById('btn-next-3').disabled = true;
+    document.getElementById('authority-info').style.display = 'none';
+    goTo(0);
+  }
+</script>
+</body>
+</html>
