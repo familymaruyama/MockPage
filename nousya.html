@@ -3,1216 +3,807 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>納車説明ツール</title>
+  <title>納車マネージャー</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
   <style>
-    /*
-     * ========================================
-     * Family Design System トークン適用
-     * ========================================
-     * color.primary.500   : #E57138  ファミリーオレンジ
-     * color.primary.400   : #EA8B56  押下状態
-     * color.primary.300   : #EFA576  中間
-     * color.primary.200   : #F5C19B  ボーダー
-     * color.primary.100   : #FADCC4  薄オレンジ背景
-     * color.background.beige : #FFF0D9  サブサーフェス
-     * color.background.white : #FFFFFF  基本サーフェス
-     * color.neutral.black    : #000000  主要テキスト
-     * ディープグレー          : #606060  サブテキスト
-     * ロイヤルブルー           : #0033D9  室内タグ
-     * ナチュラルグリーン       : #80CC3D  屋外タグ・成功状態
-     * radius.sm=4px / radius.md=8px / radius.lg=12px
-     * ========================================
-     */
+    /* FDS Tokens */
     :root {
-      --color-primary:       #E57138;
-      --color-primary-hover: #EA8B56;
-      --color-primary-light: #FADCC4;
-      --color-primary-mid:   #EFA576;
-      --color-primary-border:#F5C19B;
-      --color-bg:            #FFF0D9;
-      --color-card:          #FFFFFF;
-      --color-text:          #000000;
-      --color-text-sub:      #606060;
-      --color-border:        #F5C19B;
-      --color-success:       #80CC3D;
-      --color-indoor:        #0033D9;
-      --color-outdoor:       #80CC3D;
-      --radius-sm:  4px;
-      --radius-md:  8px;
-      --radius-lg:  12px;
-      --radius-full: 100px;
-      --shadow-card: 0 2px 12px rgba(229,113,56,0.10);
-      --shadow-lg:   0 6px 28px rgba(229,113,56,0.14);
+      --p500: #E57138;  /* color.primary.500 */
+      --p400: #EA8B56;  /* color.primary.400 pressed */
+      --p200: #F5C19B;  /* color.primary.200 border/disabled */
+      --p100: #FADCC4;  /* color.primary.100 light bg */
+      --bg:   #FFF0D9;  /* color.background.beige */
+      --surf: #FFFFFF;  /* color.background.white */
+      --surf2:#F0EDED;  /* surface-container */
+      --txt:  #000000;  /* color.neutral.black */
+      --sub:  #606060;  /* ディープグレー */
+      --ok:   #80CC3D;  /* ナチュラルグリーン success */
+      --indoor:  #0033D9; /* ロイヤルブルー */
+      --outdoor: #80CC3D; /* ナチュラルグリーン */
+      --r-sm: 4px; --r-md: 8px; --r-lg: 12px; --r-full: 9999px;
     }
-
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
     body {
-      /* font.family.primary = Noto Sans / system fallback */
       font-family: 'Noto Sans JP', -apple-system, 'Hiragino Sans', sans-serif;
-      background: var(--color-bg);
-      color: var(--color-text);
+      background: var(--bg);
+      color: var(--txt);
       min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
       -webkit-tap-highlight-color: transparent;
     }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      vertical-align: middle;
+      user-select: none;
+    }
+
+    /* ===== TOP APP BAR ===== */
+    .top-bar {
+      position: sticky; top: 0; z-index: 40;
+      background: var(--surf);
+      border-bottom: 1.5px solid var(--p200);
+      padding: 14px 24px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .top-bar-title { font-size: 20px; font-weight: 700; color: var(--p500); line-height: 1; }
+    .top-bar-sub   { font-size: 12px; color: var(--sub); margin-top: 3px; letter-spacing: 0.03em; }
+    .top-bar-icon  { color: var(--p500); font-size: 32px; }
+
+    /* ===== STEP PROGRESS ===== */
+    .steps {
+      background: var(--surf);
+      border-bottom: 1.5px solid var(--p200);
+      padding: 16px 24px;
+      display: flex; gap: 8px; align-items: flex-start;
+    }
+    .step { flex: 1; }
+    .step-bar {
+      height: 6px; border-radius: 3px;
+      background: var(--surf2);
+      transition: background 0.3s;
+      margin-bottom: 6px;
+    }
+    .step-bar.active { background: var(--p500); }
+    .step-bar.done   { background: var(--p200); }
+    .step-lbl {
+      font-size: 10px; font-weight: 700;
+      color: var(--sub); letter-spacing: 0.06em;
+      transition: color 0.3s;
+    }
+    .step-lbl.active { color: var(--p500); }
+    .step-lbl.done   { color: var(--p200); }
+
+    /* ===== LAYOUT ===== */
+    .content { flex: 1; overflow-y: auto; padding: 20px 20px 110px; }
+
+    /* ===== BOTTOM NAV ===== */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; width: 100%; z-index: 50;
+      background: var(--surf2);
+      border-top: 1.5px solid var(--p200);
+      padding: 14px 20px;
+      padding-bottom: max(14px, env(safe-area-inset-bottom));
+      display: flex; gap: 12px; align-items: center;
+    }
+    .btn-back {
+      flex: 0 0 auto;
+      display: flex; align-items: center; gap: 6px;
+      padding: 14px 18px;
+      background: var(--bg); color: var(--txt);
+      font-size: 15px; font-weight: 700;
+      border: 1.5px solid var(--p200); border-radius: var(--r-md);
+      cursor: pointer; font-family: inherit;
+    }
+    .btn-back:active { opacity: 0.75; }
+    .btn-fwd {
+      flex: 1;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 16px 20px;
+      background: var(--p500); color: #fff;
+      font-size: 16px; font-weight: 700;
+      border: none; border-radius: var(--r-md);
+      cursor: pointer; font-family: inherit;
+      transition: background 0.2s, transform 0.1s, opacity 0.2s;
+    }
+    .btn-fwd:active { background: var(--p400); transform: scale(0.98); }
+    .btn-fwd:disabled { background: var(--p200); cursor: default; transform: none; }
 
     /* ===== SCREENS ===== */
-    .screen { display: none; min-height: 100vh; }
-    .screen.active { display: flex; flex-direction: column; }
+    .screen { display: none; }
+    .screen.active { display: block; }
 
-    /* ===== 共通ボタン ===== */
-    /* color.interactive.default = #E57138 */
-    .btn-primary {
-      width: 100%;
-      padding: 18px;
-      background: var(--color-primary);
-      color: #FFFFFF;
-      font-size: 17px;           /* font.size.body.lg */
-      font-weight: 700;          /* font.weight.bold */
-      border: none;
-      border-radius: var(--radius-lg);
-      cursor: pointer;
-      letter-spacing: 0.03em;    /* font.letterSpacing.wide */
-      transition: background 0.2s, transform 0.1s;
+    /* ===== 1. WELCOME ===== */
+    .welcome-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
     }
-    .btn-primary:active {
-      background: var(--color-primary-hover); /* color.interactive.pressed */
-      transform: scale(0.98);
-    }
+    @media (max-width: 640px) { .welcome-grid { grid-template-columns: 1fr; } }
 
-    /* ===== 1. ウェルカム画面 ===== */
-    /* color.primary.500 → color.primary.400 グラデーション */
-    #screen-welcome {
-      background: linear-gradient(150deg, #E57138 0%, #EA8B56 55%, #EFA576 100%);
-      align-items: center;
-      justify-content: center;
-      padding: 48px 28px;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
+    .card {
+      background: var(--surf);
+      border-radius: var(--r-lg);
+      border: 1.5px solid var(--p200);
+      box-shadow: 0 2px 12px rgba(229,113,56,0.08);
     }
-    /* 装飾サークル */
-    #screen-welcome::before {
-      content: '';
-      position: absolute;
-      width: 640px; height: 640px;
-      top: -260px; left: -180px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.06);
-    }
-    #screen-welcome::after {
-      content: '';
-      position: absolute;
-      width: 480px; height: 480px;
-      bottom: -200px; right: -180px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.05);
-    }
+    .welcome-main { padding: 32px 28px; }
 
-    .welcome-content { position: relative; z-index: 1; width: 100%; max-width: 480px; }
-
-    /* バッジ：color.primary.100 + white border */
-    .welcome-badge {
-      display: inline-block;
-      background: rgba(255,255,255,0.18);
-      border: 1.5px solid rgba(255,255,255,0.5);  /* border.width.sm */
-      color: #FFFFFF;
-      font-size: 11px;                              /* font.size.label */
-      font-weight: 700;
-      letter-spacing: 0.12em;                      /* font.letterSpacing.wide */
-      padding: 6px 16px;
-      border-radius: var(--radius-full);
-      margin-bottom: 36px;
-    }
-
-    .welcome-car-icon {
-      font-size: 80px;
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 14px;
+      background: var(--p100); border-radius: var(--r-full);
       margin-bottom: 20px;
-      display: block;
-      animation: float 3s ease-in-out infinite;
+      font-size: 11px; font-weight: 700;
+      color: var(--p500); letter-spacing: 0.08em;
     }
-    @keyframes float {
-      0%, 100% { transform: translateY(0); }
-      50%       { transform: translateY(-10px); }
+    .chip .material-symbols-outlined { font-size: 15px; font-variation-settings: 'FILL' 1; }
+
+    .welcome-h { font-size: 28px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; }
+    .welcome-p { font-size: 14px; color: var(--sub); line-height: 1.8; margin-bottom: 28px; }
+
+    .form-lbl {
+      display: block; font-size: 11px; font-weight: 700;
+      color: var(--sub); letter-spacing: 0.07em; margin-bottom: 6px;
     }
-
-    /* font.size.heading.xl = 28pt（モバイル） */
-    .welcome-title {
-      font-size: 32px;
-      font-weight: 700;
-      color: #FFFFFF;
-      line-height: 1.3;      /* font.lineHeight.tight */
-      margin-bottom: 10px;
+    .form-inp {
+      width: 100%; padding: 13px 15px; margin-bottom: 16px;
+      background: var(--bg); border: 1.5px solid var(--p200);
+      border-radius: var(--r-md); font-size: 16px; font-family: inherit;
+      color: var(--txt); outline: none; transition: border-color 0.2s;
     }
+    .form-inp::placeholder { color: #AFAFAF; }
+    .form-inp:focus { border-color: var(--p500); }
 
-    /* font.size.body.md = 14pt */
-    .welcome-subtitle {
-      font-size: 14px;
-      color: rgba(255,255,255,0.75);
-      margin-bottom: 40px;
-      line-height: 1.6;      /* font.lineHeight.normal */
+    .welcome-side { display: flex; flex-direction: column; overflow: hidden; }
+    .car-visual {
+      background: linear-gradient(135deg, var(--p100) 0%, var(--bg) 100%);
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      font-size: 72px; position: relative; min-height: 200px;
     }
-
-    /* フォームカード：白背景 */
-    .welcome-form {
-      background: rgba(255,255,255,0.92);
-      border-radius: var(--radius-lg);
-      padding: 24px;
-      margin-bottom: 24px;
-      text-align: left;
+    .car-label {
+      position: absolute; bottom: 10px; left: 10px;
+      background: rgba(255,255,255,0.92); backdrop-filter: blur(4px);
+      padding: 5px 12px; border-radius: var(--r-md);
+      font-size: 12px; font-weight: 700;
     }
-
-    .form-group { margin-bottom: 18px; }
-    .form-group:last-child { margin-bottom: 0; }
-
-    /* font.size.label = 11pt */
-    .form-label {
-      display: block;
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--color-text-sub);
-      letter-spacing: 0.08em;
-      margin-bottom: 8px;
+    .key-row {
+      display: flex; align-items: center; gap: 14px;
+      padding: 18px 20px; background: var(--bg);
+      border-top: 1.5px solid var(--p200);
     }
-
-    /* font.size.body.lg = 16pt */
-    .form-input {
-      width: 100%;
-      padding: 14px 16px;               /* spacing.md */
-      background: var(--color-bg);
-      border: 1.5px solid var(--color-border); /* border.width.sm */
-      border-radius: var(--radius-md);
-      font-size: 16px;
-      color: var(--color-text);
-      outline: none;
-      transition: border-color 0.2s;
+    .key-icon {
+      width: 44px; height: 44px;
+      background: var(--surf); border-radius: 50%;
+      border: 1.5px solid var(--p200);
+      display: flex; align-items: center; justify-content: center;
     }
-    .form-input::placeholder { color: #AFAFAF; }
-    .form-input:focus { border-color: var(--color-primary); }
+    .key-icon .material-symbols-outlined { color: var(--p500); font-size: 22px; }
+    .key-title { font-size: 14px; font-weight: 700; }
+    .key-sub   { font-size: 12px; color: var(--sub); margin-top: 2px; }
+    .icon-ok   { color: var(--ok); font-size: 28px; margin-left: auto; font-variation-settings: 'FILL' 1; }
 
-    /* ウェルカム画面のみ白ボタン */
-    .btn-primary-white {
-      width: 100%;
-      padding: 18px;
-      background: #FFFFFF;
-      color: var(--color-primary);
-      font-size: 17px;
-      font-weight: 700;
-      border: none;
-      border-radius: var(--radius-lg);
-      cursor: pointer;
-      letter-spacing: 0.03em;
-      transition: opacity 0.2s, transform 0.1s;
-    }
-    .btn-primary-white:active { opacity: 0.88; transform: scale(0.98); }
-
-    /* ===== 2. 一覧画面 ===== */
-    /* ヘッダー：color.primary.500 */
-    .screen-header {
-      background: var(--color-primary);
-      padding: 24px 20px 20px;
-      color: #FFFFFF;
-      flex-shrink: 0;
-    }
-
-    /* font.size.body.sm = 12pt */
-    .header-greeting {
-      font-size: 12px;
-      color: rgba(255,255,255,0.65);
-      margin-bottom: 4px;
-      letter-spacing: 0.07em;
-    }
-
-    /* font.size.heading.lg = 22pt */
-    .header-title { font-size: 22px; font-weight: 700; }
-
-    .header-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;               /* spacing.xs */
-      margin-top: 14px;
-    }
-
-    /* チップ：半透明白 */
-    .meta-chip {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      background: rgba(255,255,255,0.18);
-      padding: 5px 12px;
-      border-radius: var(--radius-full);
-      font-size: 13px;
-      color: rgba(255,255,255,0.9);
-    }
-
-    .list-body { flex: 1; overflow-y: auto; padding: 16px; }
-
-    /* セクションラベル */
-    .section-label {
-      display: flex;
-      align-items: center;
-      gap: 8px;                    /* spacing.xs */
-      font-size: 11px;             /* font.size.label */
-      font-weight: 700;
-      letter-spacing: 0.10em;
+    /* ===== 2. LIST ===== */
+    .sec-lbl {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.10em;
       margin: 20px 0 10px 4px;
     }
-    .section-label:first-child { margin-top: 4px; }
-    /* ロイヤルブルー：#0033D9 */
-    .section-label.indoor  { color: var(--color-indoor); }
-    /* ナチュラルグリーン：#80CC3D */
-    .section-label.outdoor { color: var(--color-outdoor); }
+    .sec-lbl:first-child { margin-top: 4px; }
+    .sec-lbl.indoor  { color: var(--indoor); }
+    .sec-lbl.outdoor { color: var(--outdoor); }
+    .sec-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .indoor  .sec-dot { background: var(--indoor); }
+    .outdoor .sec-dot { background: var(--outdoor); }
 
-    .section-dot { width: 8px; height: 8px; border-radius: 50%; }
-    .indoor  .section-dot { background: var(--color-indoor); }
-    .outdoor .section-dot { background: var(--color-outdoor); }
-
-    /* アイテムカード */
-    .item-card {
-      background: var(--color-card);
-      border-radius: var(--radius-md);
-      padding: 14px 16px;
-      display: flex;
-      align-items: center;
-      gap: 14px;               /* spacing.md */
-      margin-bottom: 8px;
-      box-shadow: var(--shadow-card);
-      cursor: pointer;
-      transition: opacity 0.2s;
-      user-select: none;
-      border: 1.5px solid transparent; /* border.width.sm */
+    .item-row {
+      background: var(--surf); border-radius: var(--r-md);
+      padding: 13px 15px; margin-bottom: 8px;
+      display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 1px 4px rgba(229,113,56,0.06);
+      border: 1.5px solid transparent;
+      cursor: pointer; user-select: none; transition: opacity 0.2s;
     }
-    .item-card.skipped { opacity: 0.35; }
-
-    /* 番号バッジ */
-    .item-number {
-      width: 28px; height: 28px;
-      background: var(--color-bg);
-      border-radius: 50%;
+    .item-row.skipped { opacity: 0.35; }
+    .item-num {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--bg);
       display: flex; align-items: center; justify-content: center;
-      font-size: 11px;             /* font.size.label */
-      font-weight: 700;
-      color: var(--color-text-sub);
-      flex-shrink: 0;
+      font-size: 11px; font-weight: 700; color: var(--sub); flex-shrink: 0;
     }
-
-    /* font.size.body.md = 14pt */
-    .item-name { flex: 1; font-size: 14px; font-weight: 500; line-height: 1.6; }
-
-    /* トグル：ON = color.primary.500 */
-    .item-toggle {
-      width: 46px; height: 28px;
-      background: #AFAFAF;
-      border-radius: var(--radius-full);
-      position: relative;
-      transition: background 0.25s;
-      flex-shrink: 0;
+    .item-name { flex: 1; font-size: 14px; font-weight: 500; line-height: 1.5; }
+    .toggle {
+      width: 46px; height: 28px; background: #AFAFAF;
+      border-radius: var(--r-full); position: relative;
+      flex-shrink: 0; transition: background 0.25s;
     }
-    .item-toggle.on { background: var(--color-primary); }
-    .item-toggle::after {
-      content: '';
-      position: absolute;
-      width: 24px; height: 24px;
-      background: white;
-      border-radius: 50%;
+    .toggle.on { background: var(--p500); }
+    .toggle::after {
+      content: ''; position: absolute;
+      width: 24px; height: 24px; background: white; border-radius: 50%;
       top: 2px; left: 2px;
       transition: transform 0.25s;
       box-shadow: 0 1px 4px rgba(0,0,0,0.18);
     }
-    .item-toggle.on::after { transform: translateX(18px); }
+    .toggle.on::after { transform: translateX(18px); }
 
-    /* フッター */
-    .list-footer {
-      padding: 16px;
-      background: var(--color-card);
-      border-top: 1.5px solid var(--color-border);
-      flex-shrink: 0;
-    }
-
-    .list-summary {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    /* ===== 3. SLIDE ===== */
+    .slide-tag {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 14px; border-radius: var(--r-full);
+      font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
       margin-bottom: 14px;
-      padding: 0 4px;
     }
-    /* font.size.body.sm */
-    .summary-text  { font-size: 12px; color: var(--color-text-sub); }
-    /* font.size.heading.lg */
-    .summary-count { font-size: 22px; font-weight: 700; color: var(--color-primary); }
+    .slide-tag.indoor  { background: rgba(0,51,217,0.08); color: var(--indoor); }
+    .slide-tag.outdoor { background: rgba(128,204,61,0.12); color: #4a8a1a; }
 
-    /* ===== 3. スライド画面 ===== */
-    .slide-header {
-      background: var(--color-primary);
-      padding: 20px 20px 16px;
-      color: #FFFFFF;
-      flex-shrink: 0;
-    }
-
-    .progress-wrap { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-
-    /* プログレスバー：白トラック上に白フィル（見えるよう opacity で差別化） */
-    .progress-bar-bg {
-      flex: 1; height: 6px;
-      background: rgba(255,255,255,0.25);
-      border-radius: 3px; overflow: hidden;
-    }
-    .progress-bar-fill {
-      height: 100%;
-      background: #FFFFFF;
-      border-radius: 3px;
-      transition: width 0.4s ease;
-    }
-    /* font.size.body.sm */
-    .progress-text { font-size: 12px; color: rgba(255,255,255,0.75); white-space: nowrap; }
-
-    /* セクションタグ：白背景 + 色テキスト */
-    .slide-section-tag {
-      display: inline-flex;
-      align-items: center; gap: 6px;
-      font-size: 11px; font-weight: 700;
-      letter-spacing: 0.07em;
-      padding: 4px 12px;
-      border-radius: var(--radius-full);
-    }
-    .slide-section-tag.indoor  { background: rgba(255,255,255,0.22); color: #FFFFFF; }
-    .slide-section-tag.outdoor { background: rgba(255,255,255,0.22); color: #FFFFFF; }
-
-    .slide-body {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      padding: 20px 16px;        /* spacing.lg */
-      overflow-y: auto;
-    }
-
-    /* スライドカード */
     .slide-card {
-      background: var(--color-card);
-      border-radius: var(--radius-lg);
+      background: var(--surf); border-radius: var(--r-lg);
       padding: 28px 24px;
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      box-shadow: var(--shadow-lg);
+      border: 1.5px solid var(--p200);
+      box-shadow: 0 2px 12px rgba(229,113,56,0.08);
+      display: flex; flex-direction: column;
+    }
+    .slide-title { font-size: 24px; font-weight: 700; line-height: 1.3; margin-bottom: 14px; }
+    .slide-desc  { font-size: 14px; color: var(--sub); line-height: 1.9; flex: 1; }
+
+    .timer-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 11px 15px; margin-top: 22px;
+      background: var(--bg); border-radius: var(--r-md);
+      font-size: 13px; color: var(--sub);
+    }
+    .timer-row .material-symbols-outlined { font-size: 18px; }
+    .timer-val {
+      font-size: 20px; font-weight: 700; color: var(--p500);
+      font-variant-numeric: tabular-nums; margin-left: auto;
     }
 
-    /* font.size.heading.xl = 28pt */
-    .slide-item-title {
-      font-size: 24px;
-      font-weight: 700;
-      color: var(--color-text);
-      margin-bottom: 16px;
-      line-height: 1.3;
-    }
-
-    /* font.size.body.md = 14pt */
-    .slide-item-desc {
-      font-size: 14px;
-      color: var(--color-text-sub);
-      line-height: 1.9;         /* font.lineHeight.relaxed */
-      flex: 1;
-    }
-
-    /* タイマー：color.background.beige */
-    .slide-timer {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 24px;
-      padding: 12px 16px;
-      background: var(--color-bg);
-      border-radius: var(--radius-md);
-      font-size: 13px;
-      color: var(--color-text-sub);
-    }
-    .timer-value {
-      font-size: 20px;
-      font-weight: 700;
-      color: var(--color-primary);   /* color.primary.500 */
-      font-variant-numeric: tabular-nums;
-      margin-left: auto;
-    }
-
-    .slide-check-area { margin-top: 18px; }
-
-    /* チェックエリア：デフォルト=beige、チェック済み=primary.100 + primary border */
-    .check-label {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      padding: 16px;
-      background: var(--color-bg);
-      border-radius: var(--radius-md);
-      cursor: pointer;
-      border: 2px solid transparent;    /* border.width.md */
+    .check-row {
+      display: flex; align-items: center; gap: 14px;
+      padding: 15px; margin-top: 16px;
+      background: var(--bg); border: 2px solid transparent;
+      border-radius: var(--r-md); cursor: pointer; user-select: none;
       transition: all 0.2s;
-      user-select: none;
     }
-    .check-label.checked {
-      background: var(--color-primary-light);  /* color.primary.100 */
-      border-color: var(--color-primary);
-    }
-
-    /* チェックボックス：チェック済み = color.success (#80CC3D) */
+    .check-row.checked { background: var(--p100); border-color: var(--p500); }
     .check-box {
-      width: 30px; height: 30px;
-      border: 2px solid #AFAFAF;         /* border.width.md */
-      border-radius: var(--radius-sm);
-      flex-shrink: 0;
+      width: 30px; height: 30px; border: 2px solid #AFAFAF;
+      border-radius: var(--r-sm); background: white;
       display: flex; align-items: center; justify-content: center;
-      transition: all 0.2s;
-      background: white;
+      flex-shrink: 0; transition: all 0.2s;
     }
-    .check-box.checked {
-      background: var(--color-success);   /* #80CC3D */
-      border-color: var(--color-success);
+    .check-box.checked { background: var(--ok); border-color: var(--ok); }
+    .check-box .material-symbols-outlined {
+      font-size: 18px; color: white; display: none;
+      font-variation-settings: 'FILL' 1;
     }
+    .check-box.checked .material-symbols-outlined { display: block; }
+    .check-lbl { font-size: 14px; font-weight: 700; }
 
-    .check-box-icon { color: white; font-size: 17px; display: none; font-weight: 700; }
-    .check-box.checked .check-box-icon { display: block; }
-
-    /* font.size.body.md */
-    .check-text { font-size: 14px; font-weight: 700; color: var(--color-text); }
-
-    .slide-footer {
-      padding: 14px 16px;
-      background: var(--color-card);
-      border-top: 1.5px solid var(--color-border);
-      display: flex;
-      gap: 10px;
-      flex-shrink: 0;
+    /* ===== 4. SIGN ===== */
+    .sign-summary {
+      background: var(--surf); border-radius: var(--r-lg);
+      padding: 20px; border: 1.5px solid var(--p200);
+      box-shadow: 0 2px 8px rgba(229,113,56,0.06); margin-bottom: 14px;
     }
-
-    /* セカンダリボタン：beige背景 + primary文字 */
-    .btn-secondary {
-      flex: 0 0 auto;
-      padding: 16px 18px;
-      background: var(--color-bg);
-      color: var(--color-primary);
-      font-size: 14px;
-      font-weight: 700;
-      border: 1.5px solid var(--color-border);
-      border-radius: var(--radius-lg);
-      cursor: pointer;
+    .sign-summary-ttl {
+      font-size: 11px; font-weight: 700; color: var(--sub);
+      letter-spacing: 0.10em; margin-bottom: 12px;
     }
-
-    /* 次へボタン：未チェック=disabled(primary.200)、チェック済み=primary.500 */
-    .btn-next {
-      flex: 1;
-      padding: 16px;
-      background: var(--color-primary-border);  /* color.interactive.disabled */
-      color: white;
-      font-size: 16px;
-      font-weight: 700;
-      border: none;
-      border-radius: var(--radius-lg);
-      cursor: default;
-      transition: background 0.2s, transform 0.1s;
+    .sign-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .sign-item {
+      display: flex; align-items: flex-start; gap: 5px;
+      font-size: 12px; color: var(--sub); line-height: 1.5;
     }
-    .btn-next.enabled {
-      background: var(--color-primary);         /* color.interactive.default */
-      cursor: pointer;
-    }
-    .btn-next.enabled:active {
-      background: var(--color-primary-hover);   /* color.interactive.pressed */
-      transform: scale(0.98);
-    }
-
-    /* ===== 4. サイン画面 ===== */
-    .sign-header {
-      background: var(--color-primary);
-      padding: 24px 20px;
-      color: #FFFFFF;
-      text-align: center;
-      flex-shrink: 0;
-    }
-    /* font.size.heading.md = 18pt */
-    .sign-header-title { font-size: 18px; font-weight: 700; }
-    /* font.size.body.sm */
-    .sign-header-sub   { font-size: 13px; color: rgba(255,255,255,0.72); margin-top: 6px; line-height: 1.6; }
-
-    .sign-body {
-      flex: 1;
-      padding: 20px 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      overflow-y: auto;
-    }
-
-    .sign-summary-card {
-      background: var(--color-card);
-      border-radius: var(--radius-lg);
-      padding: 20px;
-      box-shadow: var(--shadow-card);
-    }
-    /* font.size.label */
-    .sign-summary-title {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--color-text-sub);
-      letter-spacing: 0.10em;
-      margin-bottom: 14px;
-    }
-    .sign-summary-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-    /* font.size.body.sm */
-    .sign-summary-item {
-      font-size: 12px;
-      color: var(--color-text-sub);
-      display: flex;
-      align-items: flex-start;
-      gap: 5px;
-      line-height: 1.6;
-    }
-    /* チェックアイコン：color.success */
-    .sign-summary-item .chk { color: var(--color-success); font-weight: 700; flex-shrink: 0; }
+    .sign-item .chk { color: var(--ok); font-weight: 700; flex-shrink: 0; }
 
     .sign-canvas-card {
-      background: var(--color-card);
-      border-radius: var(--radius-lg);
-      padding: 20px;
-      box-shadow: var(--shadow-card);
+      background: var(--surf); border-radius: var(--r-lg);
+      padding: 22px; border: 1.5px solid var(--p200);
+      box-shadow: 0 2px 8px rgba(229,113,56,0.06);
     }
-    /* font.size.body.md */
-    .sign-canvas-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
-    /* font.size.body.sm */
-    .sign-canvas-sub   { font-size: 12px; color: var(--color-text-sub); margin-bottom: 14px; line-height: 1.6; }
-
+    .sign-ttl { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .sign-sub  { font-size: 12px; color: var(--sub); margin-bottom: 14px; line-height: 1.6; }
     #signCanvas {
-      width: 100%;
-      height: 180px;
-      border: 2px dashed var(--color-border);  /* border.width.md + primary.200 */
-      border-radius: var(--radius-md);
-      touch-action: none;
-      cursor: crosshair;
-      display: block;
-      background: var(--color-bg);
+      width: 100%; height: 180px;
+      border: 2px dashed var(--p200); border-radius: var(--r-md);
+      touch-action: none; cursor: crosshair; display: block;
+      background: var(--bg);
     }
-    #signCanvas.has-sign {
-      border-style: solid;
-      border-color: var(--color-success);       /* color.success */
+    #signCanvas.signed { border-style: solid; border-color: var(--ok); }
+    .clear-btn {
+      margin-top: 8px; background: none; border: none;
+      font-size: 12px; color: var(--sub); cursor: pointer;
+      text-decoration: underline; font-family: inherit; padding: 4px 0;
     }
 
-    .sign-clear-btn {
-      margin-top: 8px;
-      background: none;
-      border: none;
-      font-size: 12px;
-      color: var(--color-text-sub);
-      cursor: pointer;
-      padding: 4px 0;
-      text-decoration: underline;
+    /* ===== 5. COMPLETE ===== */
+    .complete-wrap {
+      display: flex; flex-direction: column;
+      align-items: center; text-align: center; padding: 48px 16px;
     }
+    .complete-icon { font-size: 80px; margin-bottom: 20px; animation: pop .5s cubic-bezier(.34,1.56,.64,1); }
+    @keyframes pop { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+    .complete-ttl { font-size: 26px; font-weight: 700; margin-bottom: 8px; }
+    .complete-sub { font-size: 14px; color: var(--sub); margin-bottom: 36px; line-height: 1.6; }
 
-    .sign-footer {
-      padding: 16px;
-      background: var(--color-card);
-      border-top: 1.5px solid var(--color-border);
-      flex-shrink: 0;
+    .stats-card {
+      background: var(--surf); border-radius: var(--r-lg);
+      padding: 24px; border: 1.5px solid var(--p200);
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;
+      width: 100%; max-width: 400px; margin-bottom: 28px;
+      box-shadow: 0 2px 12px rgba(229,113,56,0.08);
     }
+    .stat-val { font-size: 26px; font-weight: 700; color: var(--p500); display: block; }
+    .stat-lbl { font-size: 11px; color: var(--sub); margin-top: 4px; display: block; letter-spacing: 0.05em; }
 
-    /* ===== 5. 完了画面 ===== */
-    /* color.primary グラデーション */
-    #screen-complete {
-      background: linear-gradient(150deg, #E57138 0%, #EA8B56 55%, #EFA576 100%);
-      align-items: center;
-      justify-content: center;
-      padding: 48px 24px;
-      text-align: center;
-    }
-
-    .complete-icon {
-      font-size: 80px;
-      margin-bottom: 20px;
-      display: block;
-      animation: pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-    @keyframes pop {
-      0%   { transform: scale(0); }
-      100% { transform: scale(1); }
-    }
-
-    /* font.size.heading.xl */
-    .complete-title { font-size: 28px; font-weight: 700; color: #FFFFFF; margin-bottom: 10px; }
-    /* font.size.body.md */
-    .complete-sub   { font-size: 14px; color: rgba(255,255,255,0.75); margin-bottom: 40px; line-height: 1.6; }
-
-    /* 統計カード：半透明白 */
-    .complete-stats {
-      background: rgba(255,255,255,0.18);
-      border: 1.5px solid rgba(255,255,255,0.3);
-      border-radius: var(--radius-lg);
-      padding: 24px;
-      margin-bottom: 32px;
-      width: 100%;
-      max-width: 400px;
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 16px;
-    }
-
-    .stat-item { text-align: center; }
-    /* font.size.heading.xl */
-    .stat-value  { font-size: 28px; font-weight: 700; color: #FFFFFF; display: block; }
-    /* font.size.label */
-    .stat-label  { font-size: 11px; color: rgba(255,255,255,0.65); margin-top: 4px; display: block; letter-spacing: 0.05em; }
-
-    /* 完了画面ボタン：白 */
     .btn-print {
-      width: 100%; max-width: 400px;
-      padding: 18px;
-      background: #FFFFFF;
-      color: var(--color-primary);
-      font-size: 17px; font-weight: 700;
-      border: none; border-radius: var(--radius-lg);
-      cursor: pointer;
-      margin-bottom: 12px;
-      transition: opacity 0.2s;
+      width: 100%; max-width: 400px; padding: 17px;
+      background: var(--p500); color: white;
+      font-size: 16px; font-weight: 700;
+      border: none; border-radius: var(--r-lg); cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      margin-bottom: 10px; font-family: inherit;
     }
-    .btn-print:active { opacity: 0.88; }
-
-    /* 新規開始ボタン：半透明 */
+    .btn-print:active { background: var(--p400); }
     .btn-new {
-      width: 100%; max-width: 400px;
-      padding: 16px;
-      background: rgba(255,255,255,0.12);
-      color: rgba(255,255,255,0.85);
+      width: 100%; max-width: 400px; padding: 14px;
+      background: var(--bg); color: var(--txt);
       font-size: 14px; font-weight: 700;
-      border: 1.5px solid rgba(255,255,255,0.3);
-      border-radius: var(--radius-lg);
-      cursor: pointer;
+      border: 1.5px solid var(--p200); border-radius: var(--r-lg);
+      cursor: pointer; font-family: inherit;
     }
 
-    /* ===== 印刷スタイル ===== */
-    #print-page { display: none; padding: 40px; font-family: 'Noto Sans JP', -apple-system, 'Hiragino Sans', sans-serif; }
-
+    /* ===== PRINT ===== */
+    #print-page { display: none; padding: 40px; font-family: 'Noto Sans JP', sans-serif; }
     @media print {
-      .screen { display: none !important; }
+      .app { display: none !important; }
       #print-page { display: block !important; }
     }
-
-    /* 印刷タイトル：color.primary ボーダー */
-    .print-title {
+    .print-ttl {
       font-size: 20px; font-weight: 700;
-      border-bottom: 2.5px solid #E57138;   /* border.width.md + color.primary */
+      border-bottom: 2.5px solid #E57138;
       padding-bottom: 12px; margin-bottom: 20px;
-      color: #000000;
     }
-
     .print-meta { display: flex; flex-wrap: wrap; gap: 24px; margin-bottom: 24px; font-size: 14px; }
     .print-meta span { color: #606060; }
-
     .print-items { columns: 2; gap: 32px; margin-bottom: 32px; }
-
     .print-item {
-      display: flex; align-items: flex-start;
-      gap: 8px; margin-bottom: 10px;
-      font-size: 13px; break-inside: avoid;
+      display: flex; align-items: flex-start; gap: 8px;
+      margin-bottom: 10px; font-size: 13px; break-inside: avoid;
     }
-    .print-item-chk { color: #80CC3D; font-weight: 700; flex-shrink: 0; } /* color.success */
-
+    .p-chk { color: #80CC3D; font-weight: 700; flex-shrink: 0; }
     .print-sign-area {
-      border-top: 1.5px solid #F5C19B;  /* color.primary.200 */
-      padding-top: 24px;
-      display: flex; align-items: flex-end;
-      justify-content: space-between;
+      border-top: 1.5px solid #F5C19B; padding-top: 24px;
+      display: flex; justify-content: space-between; align-items: flex-end;
     }
-    .print-sign-label { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
-    .print-footer-note { font-size: 11px; color: #888888; text-align: right; }
+    .print-sign-lbl { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+    .print-note { font-size: 11px; color: #888; text-align: right; }
   </style>
 </head>
 <body>
 
-<!-- ===== 1. ウェルカム画面 ===== -->
-<div id="screen-welcome" class="screen active">
-  <div class="welcome-content">
-    <div class="welcome-badge">Family 納車説明ツール</div>
-    <span class="welcome-car-icon">🚗</span>
-    <h1 class="welcome-title">納車<br>おめでとうございます！</h1>
-    <p class="welcome-subtitle">担当者・お客様情報を入力して開始してください</p>
-
-    <div class="welcome-form">
-      <div class="form-group">
-        <label class="form-label">担当者名</label>
-        <input id="staffName" type="text" class="form-input" placeholder="例：山田 太郎">
-      </div>
-      <div class="form-group">
-        <label class="form-label">お客様名</label>
-        <input id="customerName" type="text" class="form-input" placeholder="例：田中 花子 様">
-      </div>
-      <div class="form-group">
-        <label class="form-label">車両名</label>
-        <input id="carName" type="text" class="form-input" placeholder="例：プリウス Z グレード">
-      </div>
+<div class="app">
+  <!-- Top App Bar -->
+  <header class="top-bar">
+    <div>
+      <div class="top-bar-title">納車マネージャー</div>
+      <div class="top-bar-sub" id="appSub">担当者: — | オーナー様: —</div>
     </div>
+    <span class="material-symbols-outlined top-bar-icon">account_circle</span>
+  </header>
 
-    <button class="btn-primary-white" onclick="startSession()">説明を開始する →</button>
-  </div>
-</div>
-
-<!-- ===== 2. 項目一覧画面 ===== -->
-<div id="screen-list" class="screen">
-  <div class="screen-header">
-    <div class="header-greeting">本日の納車説明</div>
-    <div class="header-title" id="listHeaderTitle">—</div>
-    <div class="header-meta">
-      <div class="meta-chip">🚗 <span id="listCarName">—</span></div>
-      <div class="meta-chip">📋 <span id="listItemCount">—</span>項目</div>
-      <div class="meta-chip">⏱ 約<span id="listTimeEst">—</span>分</div>
-    </div>
+  <!-- Step Progress -->
+  <div class="steps" id="stepsBar">
+    <div class="step"><div class="step-bar active" id="sb1"></div><div class="step-lbl active" id="sl1">01 ウェルカム</div></div>
+    <div class="step"><div class="step-bar" id="sb2"></div><div class="step-lbl" id="sl2">02 室内説明</div></div>
+    <div class="step"><div class="step-bar" id="sb3"></div><div class="step-lbl" id="sl3">03 屋外説明</div></div>
+    <div class="step"><div class="step-bar" id="sb4"></div><div class="step-lbl" id="sl4">04 最終確認</div></div>
   </div>
 
-  <div class="list-body" id="listBody"></div>
+  <!-- Content -->
+  <div class="content">
 
-  <div class="list-footer">
-    <div class="list-summary">
-      <div class="summary-text">説明する項目数（不要な項目はOFFに）</div>
-      <div class="summary-count"><span id="activeCount">—</span>項目</div>
-    </div>
-    <button class="btn-primary" onclick="startSlides()">説明を開始する →</button>
-  </div>
-</div>
-
-<!-- ===== 3. スライド画面 ===== -->
-<div id="screen-slide" class="screen">
-  <div class="slide-header">
-    <div class="progress-wrap">
-      <div class="progress-bar-bg">
-        <div class="progress-bar-fill" id="progressBar" style="width:0%"></div>
-      </div>
-      <div class="progress-text" id="progressText">1 / 31</div>
-    </div>
-    <div class="slide-section-tag" id="sectionTag">室内</div>
-  </div>
-
-  <div class="slide-body">
-    <div class="slide-card">
-      <div class="slide-item-title" id="slideTitle">—</div>
-      <div class="slide-item-desc" id="slideDesc">—</div>
-
-      <div class="slide-timer">
-        <span>⏱ 説明時間</span>
-        <span class="timer-value" id="timerDisplay">0:00</span>
-      </div>
-
-      <div class="slide-check-area">
-        <label class="check-label" id="checkLabel" onclick="toggleCheck()">
-          <div class="check-box" id="checkBox">
-            <span class="check-box-icon">✓</span>
+    <!-- Screen: Welcome -->
+    <div id="sc-welcome" class="screen active">
+      <div class="welcome-grid">
+        <!-- Left: form -->
+        <div class="card welcome-main">
+          <div class="chip">
+            <span class="material-symbols-outlined">celebration</span>
+            納車式
           </div>
-          <span class="check-text">説明済み・問題なし</span>
-        </label>
+          <h1 class="welcome-h">ご納車、<br>おめでとうございます！</h1>
+          <p class="welcome-p">お客様の新しい旅が始まります。担当者情報を入力して、スムーズな納車説明を開始しましょう。</p>
+          <label class="form-lbl">担当者名</label>
+          <input id="staffName" type="text" class="form-inp" placeholder="例：山田 太郎">
+          <label class="form-lbl">お客様名</label>
+          <input id="customerName" type="text" class="form-inp" placeholder="例：田中 花子 様">
+          <label class="form-lbl">車両名</label>
+          <input id="carName" type="text" class="form-inp" placeholder="例：プリウス Z グレード">
+        </div>
+        <!-- Right: visual -->
+        <div class="card welcome-side">
+          <div class="car-visual">
+            🚗
+            <div class="car-label" id="carLabel">車両: —</div>
+          </div>
+          <div class="key-row">
+            <div class="key-icon"><span class="material-symbols-outlined">key</span></div>
+            <div>
+              <div class="key-title">スマートキーの受渡</div>
+              <div class="key-sub">納車前に確認</div>
+            </div>
+            <span class="material-symbols-outlined icon-ok">check_circle</span>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
 
-  <div class="slide-footer">
-    <button class="btn-secondary" onclick="prevSlide()">← 戻る</button>
-    <button class="btn-next" id="btnNext" onclick="nextSlide()">次の項目へ →</button>
+    <!-- Screen: List -->
+    <div id="sc-list" class="screen">
+      <div id="listBody"></div>
+    </div>
+
+    <!-- Screen: Slide -->
+    <div id="sc-slide" class="screen">
+      <div class="slide-tag" id="slideTag">🏠 室内</div>
+      <div class="slide-card">
+        <div class="slide-title" id="slideTitle">—</div>
+        <div class="slide-desc" id="slideDesc">—</div>
+        <div class="timer-row">
+          <span class="material-symbols-outlined">timer</span>
+          説明時間
+          <span class="timer-val" id="timerVal">0:00</span>
+        </div>
+        <div class="check-row" id="checkRow" onclick="toggleCheck()">
+          <div class="check-box" id="checkBox">
+            <span class="material-symbols-outlined">check</span>
+          </div>
+          <span class="check-lbl">説明済み・問題なし</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen: Sign -->
+    <div id="sc-sign" class="screen">
+      <div class="sign-summary">
+        <div class="sign-summary-ttl">本日ご説明した項目</div>
+        <div class="sign-grid" id="signGrid"></div>
+      </div>
+      <div class="sign-canvas-card">
+        <div class="sign-ttl">お客様サイン欄</div>
+        <div class="sign-sub">全ての説明が完了しました。枠内にサインをお願いいたします。</div>
+        <canvas id="signCanvas"></canvas>
+        <button class="clear-btn" onclick="clearSign()">サインをクリアする</button>
+      </div>
+    </div>
+
+    <!-- Screen: Complete -->
+    <div id="sc-complete" class="screen">
+      <div class="complete-wrap">
+        <div class="complete-icon">🎉</div>
+        <h2 class="complete-ttl">納車説明が完了しました</h2>
+        <p class="complete-sub" id="completeSub">お疲れ様でした</p>
+        <div class="stats-card">
+          <div><span class="stat-val" id="stItems">—</span><span class="stat-lbl">説明項目</span></div>
+          <div><span class="stat-val" id="stTime">—</span><span class="stat-lbl">所要時間</span></div>
+          <div><span class="stat-val" id="stClock">—</span><span class="stat-lbl">完了時刻</span></div>
+        </div>
+        <button class="btn-print" onclick="doPrint()">
+          <span class="material-symbols-outlined" style="font-size:20px;">print</span>
+          済み証を印刷する
+        </button>
+        <button class="btn-new" onclick="resetAll()">新しい納車を開始する</button>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- Bottom Nav -->
+  <div class="bottom-nav" id="bottomNav">
+    <button class="btn-back" id="btnBack" onclick="goBack()">
+      <span class="material-symbols-outlined" style="font-size:19px;">arrow_back</span>戻る
+    </button>
+    <button class="btn-fwd" id="btnFwd" onclick="goFwd()">
+      説明項目を確認する
+      <span class="material-symbols-outlined" style="font-size:19px;">arrow_forward</span>
+    </button>
   </div>
 </div>
 
-<!-- ===== 4. サイン画面 ===== -->
-<div id="screen-sign" class="screen">
-  <div class="sign-header">
-    <div class="sign-header-title">説明内容のご確認</div>
-    <div class="sign-header-sub">全ての説明が完了しました。お客様のサインをいただいてください。</div>
-  </div>
-
-  <div class="sign-body">
-    <div class="sign-summary-card">
-      <div class="sign-summary-title">本日ご説明した項目</div>
-      <div class="sign-summary-grid" id="signSummaryGrid"></div>
-    </div>
-
-    <div class="sign-canvas-card">
-      <div class="sign-canvas-title">お客様サイン欄</div>
-      <div class="sign-canvas-sub">枠内にサインをお願いいたします</div>
-      <canvas id="signCanvas"></canvas>
-      <button class="sign-clear-btn" onclick="clearSign()">サインをクリアする</button>
-    </div>
-  </div>
-
-  <div class="sign-footer">
-    <button class="btn-primary" onclick="completeSession()">完了・記録する</button>
-  </div>
-</div>
-
-<!-- ===== 5. 完了画面 ===== -->
-<div id="screen-complete" class="screen">
-  <span class="complete-icon">🎉</span>
-  <h2 class="complete-title">納車説明が完了しました</h2>
-  <p class="complete-sub" id="completeSubText">お疲れ様でした</p>
-
-  <div class="complete-stats">
-    <div class="stat-item">
-      <span class="stat-value" id="statItems">—</span>
-      <span class="stat-label">説明項目</span>
-    </div>
-    <div class="stat-item">
-      <span class="stat-value" id="statTime">—</span>
-      <span class="stat-label">所要時間</span>
-    </div>
-    <div class="stat-item">
-      <span class="stat-value" id="statClock">—</span>
-      <span class="stat-label">完了時刻</span>
-    </div>
-  </div>
-
-  <button class="btn-print" onclick="printCertificate()">🖨 済み証を印刷する</button>
-  <button class="btn-new" onclick="resetAll()">新しい納車を開始する</button>
-</div>
-
-<!-- ===== 印刷用 ===== -->
+<!-- Print -->
 <div id="print-page">
-  <div class="print-title">納車説明 済み証</div>
+  <div class="print-ttl">納車説明 済み証</div>
   <div class="print-meta">
-    <div><span>担当者：</span><strong id="printStaff">—</strong></div>
-    <div><span>お客様：</span><strong id="printCustomer">—</strong></div>
-    <div><span>車両：</span><strong id="printCar">—</strong></div>
-    <div><span>日時：</span><strong id="printDate">—</strong></div>
+    <div><span>担当者：</span><strong id="pStaff">—</strong></div>
+    <div><span>お客様：</span><strong id="pCustomer">—</strong></div>
+    <div><span>車両：</span><strong id="pCar">—</strong></div>
+    <div><span>日時：</span><strong id="pDate">—</strong></div>
   </div>
-  <div class="print-items" id="printItems"></div>
+  <div class="print-items" id="pItems"></div>
   <div class="print-sign-area">
     <div>
-      <div class="print-sign-label">お客様サイン</div>
-      <img id="printSign" style="height:80px; width:280px; border-bottom:1.5px solid #E57138; display:block; object-fit:contain;">
+      <div class="print-sign-lbl">お客様サイン</div>
+      <img id="pSign" style="height:80px;width:280px;border-bottom:1.5px solid #E57138;display:block;object-fit:contain;">
     </div>
-    <div class="print-footer-note">
-      Family 納車説明ツール<br>
-      担当：<span id="printStaff2">—</span>
-    </div>
+    <div class="print-note">Family 納車マネージャー<br>担当：<span id="pStaff2">—</span></div>
   </div>
 </div>
 
 <script>
-// ===== チェックリスト定義 =====
 const ALL_ITEMS = [
-  // 室内
-  { id: 1,  section: 'indoor',  name: 'ドリンク案内',                          desc: 'お飲み物のご案内をする。' },
-  { id: 2,  section: 'indoor',  name: '任意保険の契約完了確認',                desc: '任意保険の契約が完了していることを確認する。証券番号・保険会社・補償内容を一緒に確認する。' },
-  { id: 3,  section: 'indoor',  name: '下取書類チェック',                       desc: '下取り車両の書類（車検証・リサイクル券等）がすべて揃っているか確認する。' },
-  { id: 4,  section: 'indoor',  name: '下取り車両の忘れ物チェック',             desc: '下取り車内に忘れ物がないか、お客様と一緒に確認する。ETCカード・サングラス等に注意。' },
-  { id: 5,  section: 'indoor',  name: 'ローン用紙記入',                         desc: 'ローン関連書類の記入漏れがないか最終確認する。' },
-  { id: 6,  section: 'indoor',  name: '保険手続き',                             desc: '保険の手続きが完了していることを確認する。' },
-  { id: 7,  section: 'indoor',  name: 'アプリの登録',                           desc: '弊社アプリのダウンロード・ログイン登録をサポートする。IDとパスワードを確認する。' },
-  { id: 8,  section: 'indoor',  name: '書類の説明',                             desc: '納車書類（保証書・取扱説明書・車検証ケース等）について説明する。' },
-  { id: 9,  section: 'indoor',  name: '弊社会員制度の案内',                    desc: 'ポイント制度・会員特典について案内する。' },
-  { id: 10, section: 'indoor',  name: '納車式（写真撮影・SNS掲載の同意確認）', desc: '納車の記念写真を撮影する。SNSへの掲載可否を確認する。' },
-  { id: 11, section: 'indoor',  name: '連絡がつきやすい時間・曜日のヒアリング', desc: 'アフターフォローのため、ご連絡しやすい時間帯と曜日をお伺いする。' },
-  // 屋外
-  { id: 12, section: 'outdoor', name: '車の傷の確認',                          desc: 'お客様と一緒に車両を一周し、傷・へこみがないか確認する。' },
-  { id: 13, section: 'outdoor', name: 'オプション内容の確認',                  desc: '取り付けたオプションが全て装着されているか確認する。' },
-  { id: 14, section: 'outdoor', name: '車検証・ナンバー・車台ナンバーの確認',  desc: '車検証の内容とナンバープレート・車台ナンバーが一致しているか確認する。' },
-  { id: 15, section: 'outdoor', name: 'ガソリン給油口の場所説明',              desc: '給油口の位置を説明する。ガソリンの種類（レギュラー／ハイオク）も確認する。' },
-  { id: 16, section: 'outdoor', name: 'キーナンバーの説明',                    desc: 'キーナンバーの確認方法と保管場所について説明する。' },
-  { id: 17, section: 'outdoor', name: 'スペアキーの説明',                      desc: 'スペアキーをお渡しし、保管場所についてご案内する。' },
-  { id: 18, section: 'outdoor', name: '鍵の開け閉め・電池切れ時の操作説明',   desc: 'スマートキーの操作方法と、電池切れ時の手動操作方法を説明する。' },
-  { id: 19, section: 'outdoor', name: 'セキュリティアラームの説明',            desc: 'セキュリティアラームの動作・解除方法を説明する。' },
-  { id: 20, section: 'outdoor', name: 'エンジンの付け方の説明',                desc: 'エンジン始動・停止の操作方法を説明する。' },
-  { id: 21, section: 'outdoor', name: '給油口の開閉レバーの説明',              desc: '室内の給油口開閉レバーの位置と操作方法を説明する。' },
-  { id: 22, section: 'outdoor', name: 'サイドミラーの操作説明',                desc: 'サイドミラーの調整方法・格納操作を説明する。' },
-  { id: 23, section: 'outdoor', name: 'ライトのオン・オフ説明',                desc: 'ヘッドライトの操作方法（オート含む）を説明する。' },
-  { id: 24, section: 'outdoor', name: '自動ブレーキボタンの説明',              desc: '衝突被害軽減ブレーキのON/OFF操作と機能概要を説明する。' },
-  { id: 25, section: 'outdoor', name: 'ナビの操作方法の説明',                  desc: 'ナビゲーションの基本操作・音量調整・地図更新方法を説明する。' },
-  { id: 26, section: 'outdoor', name: 'ステアリングリモコンの説明',            desc: 'ハンドルのリモコンボタン（オーディオ・電話等）の操作方法を説明する。' },
-  { id: 27, section: 'outdoor', name: 'ドラレコの操作方法の説明',              desc: 'ドライブレコーダーの操作方法・録画確認方法を説明する。' },
-  { id: 28, section: 'outdoor', name: 'ETCの説明',                             desc: 'ETCカードの挿入方法・利用開始手続き・音声案内の確認をする。' },
-  { id: 29, section: 'outdoor', name: 'パンク修理キットの説明',                desc: 'パンク修理キットの収納場所と使用方法を説明する。' },
-  { id: 30, section: 'outdoor', name: 'ジャッキや車載工具の説明',              desc: 'ジャッキ・車載工具の収納場所と基本的な使用方法を説明する。' },
-  { id: 31, section: 'outdoor', name: '【車種別】その他機能の説明',            desc: '車種固有の機能（電動シート・パノラマルーフ・e-POWERモード等）を説明する。' },
+  {id:1,  s:'indoor',  n:'ドリンク案内',                          d:'お飲み物のご案内をする。'},
+  {id:2,  s:'indoor',  n:'任意保険の契約完了確認',                d:'任意保険の契約が完了していることを確認する。証券番号・保険会社・補償内容を一緒に確認する。'},
+  {id:3,  s:'indoor',  n:'下取書類チェック',                       d:'下取り車両の書類（車検証・リサイクル券等）がすべて揃っているか確認する。'},
+  {id:4,  s:'indoor',  n:'下取り車両の忘れ物チェック',             d:'下取り車内に忘れ物がないか、お客様と一緒に確認する。ETCカード・サングラス等に注意。'},
+  {id:5,  s:'indoor',  n:'ローン用紙記入',                         d:'ローン関連書類の記入漏れがないか最終確認する。'},
+  {id:6,  s:'indoor',  n:'保険手続き',                             d:'保険の手続きが完了していることを確認する。'},
+  {id:7,  s:'indoor',  n:'アプリの登録',                           d:'弊社アプリのダウンロード・ログイン登録をサポートする。IDとパスワードを確認する。'},
+  {id:8,  s:'indoor',  n:'書類の説明',                             d:'納車書類（保証書・取扱説明書・車検証ケース等）について説明する。'},
+  {id:9,  s:'indoor',  n:'弊社会員制度の案内',                    d:'ポイント制度・会員特典について案内する。'},
+  {id:10, s:'indoor',  n:'納車式（写真撮影・SNS掲載の同意確認）', d:'納車の記念写真を撮影する。SNSへの掲載可否を確認する。'},
+  {id:11, s:'indoor',  n:'連絡がつきやすい時間・曜日のヒアリング', d:'アフターフォローのため、ご連絡しやすい時間帯と曜日をお伺いする。'},
+  {id:12, s:'outdoor', n:'車の傷の確認',                          d:'お客様と一緒に車両を一周し、傷・へこみがないか確認する。'},
+  {id:13, s:'outdoor', n:'オプション内容の確認',                  d:'取り付けたオプションが全て装着されているか確認する。'},
+  {id:14, s:'outdoor', n:'車検証・ナンバー・車台ナンバーの確認',  d:'車検証の内容とナンバープレート・車台ナンバーが一致しているか確認する。'},
+  {id:15, s:'outdoor', n:'ガソリン給油口の場所説明',              d:'給油口の位置を説明する。ガソリンの種類（レギュラー／ハイオク）も確認する。'},
+  {id:16, s:'outdoor', n:'キーナンバーの説明',                    d:'キーナンバーの確認方法と保管場所について説明する。'},
+  {id:17, s:'outdoor', n:'スペアキーの説明',                      d:'スペアキーをお渡しし、保管場所についてご案内する。'},
+  {id:18, s:'outdoor', n:'鍵の開け閉め・電池切れ時の操作説明',   d:'スマートキーの操作方法と、電池切れ時の手動操作方法を説明する。'},
+  {id:19, s:'outdoor', n:'セキュリティアラームの説明',            d:'セキュリティアラームの動作・解除方法を説明する。'},
+  {id:20, s:'outdoor', n:'エンジンの付け方の説明',                d:'エンジン始動・停止の操作方法を説明する。'},
+  {id:21, s:'outdoor', n:'給油口の開閉レバーの説明',              d:'室内の給油口開閉レバーの位置と操作方法を説明する。'},
+  {id:22, s:'outdoor', n:'サイドミラーの操作説明',                d:'サイドミラーの調整方法・格納操作を説明する。'},
+  {id:23, s:'outdoor', n:'ライトのオン・オフ説明',                d:'ヘッドライトの操作方法（オート含む）を説明する。'},
+  {id:24, s:'outdoor', n:'自動ブレーキボタンの説明',              d:'衝突被害軽減ブレーキのON/OFF操作と機能概要を説明する。'},
+  {id:25, s:'outdoor', n:'ナビの操作方法の説明',                  d:'ナビゲーションの基本操作・音量調整・地図更新方法を説明する。'},
+  {id:26, s:'outdoor', n:'ステアリングリモコンの説明',            d:'ハンドルのリモコンボタン（オーディオ・電話等）の操作方法を説明する。'},
+  {id:27, s:'outdoor', n:'ドラレコの操作方法の説明',              d:'ドライブレコーダーの操作方法・録画確認方法を説明する。'},
+  {id:28, s:'outdoor', n:'ETCの説明',                             d:'ETCカードの挿入方法・利用開始手続き・音声案内の確認をする。'},
+  {id:29, s:'outdoor', n:'パンク修理キットの説明',                d:'パンク修理キットの収納場所と使用方法を説明する。'},
+  {id:30, s:'outdoor', n:'ジャッキや車載工具の説明',              d:'ジャッキ・車載工具の収納場所と基本的な使用方法を説明する。'},
+  {id:31, s:'outdoor', n:'【車種別】その他機能の説明',            d:'車種固有の機能（電動シート・パノラマルーフ・e-POWERモード等）を説明する。'},
 ];
 
-// ===== セッション状態 =====
-let session = {
-  staffName: '',
-  customerName: '',
-  carName: '',
-  activeItems: [],
-  currentIndex: 0,
-  timerStart: null,
-  timerInterval: null,
-  sessionStart: null,
-  signData: null,
+// phase: 'welcome' | 'list' | 'slide' | 'sign' | 'complete'
+let phase = 'welcome';
+let sess = {
+  staff:'', customer:'', car:'',
+  items:[], idx:0,
+  tStart:null, tInterval:null, signData:null,
 };
 
-// ===== 画面切り替え =====
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+// ===== STEP =====
+function setStep(n) {
+  for (let i = 1; i <= 4; i++) {
+    document.getElementById('sb'+i).className = 'step-bar ' + (i<n?'done':i===n?'active':'');
+    document.getElementById('sl'+i).className = 'step-lbl ' + (i<n?'done':i===n?'active':'');
+  }
+}
+
+function currentStep() {
+  if (phase==='welcome'||phase==='list') return 1;
+  if (phase==='slide') return sess.items[sess.idx]?.s==='indoor' ? 2 : 3;
+  return 4;
+}
+
+// ===== SCREEN =====
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  window.scrollTo(0, 0);
+  window.scrollTo(0,0);
 }
 
-// ===== 1. スタート =====
-function startSession() {
-  session.staffName    = document.getElementById('staffName').value.trim() || '担当者';
-  session.customerName = document.getElementById('customerName').value.trim() || 'お客様';
-  session.carName      = document.getElementById('carName').value.trim() || '—';
-  session.sessionStart = new Date();
+// ===== BOTTOM NAV =====
+function syncNav() {
+  const back = document.getElementById('btnBack');
+  const fwd  = document.getElementById('btnFwd');
+  const nav  = document.getElementById('bottomNav');
+  nav.style.display = 'flex';
 
-  session.activeItems = ALL_ITEMS.map(item => ({
-    item,
-    enabled: true,
-    checked: false,
-    duration: 0,
-  }));
-
-  buildList();
-  showScreen('screen-list');
+  if (phase==='welcome') {
+    back.style.display='none';
+    fwd.innerHTML='説明項目を確認する <span class="material-symbols-outlined" style="font-size:19px;">arrow_forward</span>';
+    fwd.disabled=false;
+  } else if (phase==='list') {
+    back.style.display='flex';
+    fwd.innerHTML='説明を開始する <span class="material-symbols-outlined" style="font-size:19px;">arrow_forward</span>';
+    fwd.disabled=false;
+  } else if (phase==='slide') {
+    back.style.display='flex';
+    fwd.innerHTML='次の項目へ <span class="material-symbols-outlined" style="font-size:19px;">arrow_forward</span>';
+    fwd.disabled = !sess.items[sess.idx]?.checked;
+  } else if (phase==='sign') {
+    back.style.display='flex';
+    fwd.innerHTML='完了・記録する <span class="material-symbols-outlined" style="font-size:19px;">check</span>';
+    fwd.disabled=false;
+  } else {
+    nav.style.display='none';
+  }
 }
 
-// ===== 2. 一覧画面 =====
-function buildList() {
-  document.getElementById('listHeaderTitle').textContent = session.customerName;
-  document.getElementById('listCarName').textContent = session.carName;
+// ===== FORWARD =====
+function goFwd() {
+  if (phase==='welcome') {
+    sess.staff    = document.getElementById('staffName').value.trim()||'担当者';
+    sess.customer = document.getElementById('customerName').value.trim()||'お客様';
+    sess.car      = document.getElementById('carName').value.trim()||'—';
+    sess.items    = ALL_ITEMS.map(it=>({...it, enabled:true, checked:false, dur:0}));
+    document.getElementById('appSub').textContent  = `担当者: ${sess.staff} | オーナー様: ${sess.customer}`;
+    document.getElementById('carLabel').textContent= `車両: ${sess.car}`;
+    phase='list'; buildList(); show('sc-list'); setStep(1); syncNav();
 
-  const body = document.getElementById('listBody');
-  body.innerHTML = '';
+  } else if (phase==='list') {
+    sess.items = sess.items.filter(it=>it.enabled);
+    sess.idx=0; phase='slide';
+    show('sc-slide'); renderSlide(); setStep(currentStep()); syncNav();
 
-  let prevSection = null;
-  session.activeItems.forEach((ai, idx) => {
-    if (ai.item.section !== prevSection) {
-      prevSection = ai.item.section;
-      const lbl = document.createElement('div');
-      lbl.className = `section-label ${prevSection}`;
-      lbl.innerHTML = `<div class="section-dot"></div>${prevSection === 'indoor' ? '🏠 室内' : '🌿 屋外'}`;
-      body.appendChild(lbl);
+  } else if (phase==='slide') {
+    if (!sess.items[sess.idx].checked) return;
+    stopTimer();
+    if (sess.idx < sess.items.length-1) {
+      sess.idx++; renderSlide(); setStep(currentStep()); syncNav();
+    } else {
+      phase='sign'; buildSignGrid(); initCanvas();
+      show('sc-sign'); setStep(4); syncNav();
     }
 
-    const card = document.createElement('div');
-    card.className = `item-card${ai.enabled ? '' : ' skipped'}`;
-    card.innerHTML = `
-      <div class="item-number">${ai.item.id}</div>
-      <div class="item-name">${ai.item.name}</div>
-      <div class="item-toggle${ai.enabled ? ' on' : ''}"></div>
-    `;
-    card.onclick = () => toggleItem(idx);
-    body.appendChild(card);
+  } else if (phase==='sign') {
+    doComplete();
+  }
+}
+
+// ===== BACK =====
+function goBack() {
+  if (phase==='list') {
+    phase='welcome'; show('sc-welcome'); setStep(1); syncNav();
+  } else if (phase==='slide') {
+    stopTimer();
+    if (sess.idx>0) {
+      sess.idx--; renderSlide(); setStep(currentStep()); syncNav();
+    } else {
+      sess.items = ALL_ITEMS.map(it=>({...it, enabled:true, checked:false, dur:0}));
+      phase='list'; buildList(); show('sc-list'); setStep(1); syncNav();
+    }
+  } else if (phase==='sign') {
+    phase='slide'; sess.idx=sess.items.length-1;
+    show('sc-slide'); renderSlide(); setStep(currentStep()); syncNav();
+  }
+}
+
+// ===== LIST =====
+function buildList() {
+  const body = document.getElementById('listBody');
+  body.innerHTML='';
+  let prev=null;
+  sess.items.forEach((it,i)=>{
+    if (it.s!==prev) {
+      prev=it.s;
+      const h=document.createElement('div');
+      h.className=`sec-lbl ${it.s}`;
+      h.innerHTML=`<div class="sec-dot"></div>${it.s==='indoor'?'🏠 室内':'🌿 屋外'}`;
+      body.appendChild(h);
+    }
+    const row=document.createElement('div');
+    row.className=`item-row${it.enabled?'':' skipped'}`;
+    row.innerHTML=`<div class="item-num">${it.id}</div><div class="item-name">${it.n}</div><div class="toggle${it.enabled?' on':''}"></div>`;
+    row.onclick=()=>{ sess.items[i].enabled=!sess.items[i].enabled; buildList(); };
+    body.appendChild(row);
   });
-
-  updateListSummary();
 }
 
-function toggleItem(idx) {
-  session.activeItems[idx].enabled = !session.activeItems[idx].enabled;
-  buildList();
-}
-
-function updateListSummary() {
-  const count = session.activeItems.filter(ai => ai.enabled).length;
-  document.getElementById('listItemCount').textContent = count;
-  document.getElementById('activeCount').textContent = count;
-  document.getElementById('listTimeEst').textContent = Math.ceil(count * 1.5);
-}
-
-// ===== 3. スライド =====
-function startSlides() {
-  session.activeItems = session.activeItems.filter(ai => ai.enabled);
-  session.currentIndex = 0;
-  showScreen('screen-slide');
-  renderSlide();
-}
-
+// ===== SLIDE =====
 function renderSlide() {
-  const ai = session.activeItems[session.currentIndex];
-  const total = session.activeItems.length;
-  const current = session.currentIndex + 1;
-
-  document.getElementById('progressBar').style.width = `${(current / total) * 100}%`;
-  document.getElementById('progressText').textContent = `${current} / ${total}`;
-
-  const tag = document.getElementById('sectionTag');
-  tag.className = `slide-section-tag ${ai.item.section}`;
-  tag.textContent = ai.item.section === 'indoor' ? '🏠 室内' : '🌿 屋外';
-
-  document.getElementById('slideTitle').textContent = ai.item.name;
-  document.getElementById('slideDesc').textContent = ai.item.desc;
-
-  ai.checked = false;
-  updateCheck(false);
-  startTimer();
+  const it=sess.items[sess.idx];
+  const tag=document.getElementById('slideTag');
+  tag.className=`slide-tag ${it.s}`;
+  tag.textContent=(it.s==='indoor'?'🏠 室内':'🌿 屋外')+`　${sess.idx+1} / ${sess.items.length}`;
+  document.getElementById('slideTitle').textContent=it.n;
+  document.getElementById('slideDesc').textContent =it.d;
+  it.checked=false; updateCheck(false); startTimer();
 }
 
 function startTimer() {
-  clearInterval(session.timerInterval);
-  document.getElementById('timerDisplay').textContent = '0:00';
-  session.timerStart = Date.now();
-  session.timerInterval = setInterval(() => {
-    const sec = Math.floor((Date.now() - session.timerStart) / 1000);
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    document.getElementById('timerDisplay').textContent = `${m}:${String(s).padStart(2, '0')}`;
-  }, 1000);
+  clearInterval(sess.tInterval);
+  document.getElementById('timerVal').textContent='0:00';
+  sess.tStart=Date.now();
+  sess.tInterval=setInterval(()=>{
+    const sec=Math.floor((Date.now()-sess.tStart)/1000);
+    document.getElementById('timerVal').textContent=`${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}`;
+  },1000);
 }
-
 function stopTimer() {
-  clearInterval(session.timerInterval);
-  session.activeItems[session.currentIndex].duration = Math.floor((Date.now() - session.timerStart) / 1000);
+  clearInterval(sess.tInterval);
+  if (sess.items[sess.idx]) sess.items[sess.idx].dur=Math.floor((Date.now()-sess.tStart)/1000);
 }
 
 function toggleCheck() {
-  const ai = session.activeItems[session.currentIndex];
-  ai.checked = !ai.checked;
-  updateCheck(ai.checked);
+  const it=sess.items[sess.idx]; it.checked=!it.checked;
+  updateCheck(it.checked); syncNav();
+}
+function updateCheck(c) {
+  document.getElementById('checkBox').className =`check-box${c?' checked':''}`;
+  document.getElementById('checkRow').className =`check-row${c?' checked':''}`;
 }
 
-function updateCheck(checked) {
-  document.getElementById('checkBox').className   = `check-box${checked ? ' checked' : ''}`;
-  document.getElementById('checkLabel').className = `check-label${checked ? ' checked' : ''}`;
-  const btn = document.getElementById('btnNext');
-  btn.className = `btn-next${checked ? ' enabled' : ''}`;
-  btn.disabled = !checked;
-}
-
-function nextSlide() {
-  if (!session.activeItems[session.currentIndex].checked) return;
-  stopTimer();
-
-  if (session.currentIndex < session.activeItems.length - 1) {
-    session.currentIndex++;
-    renderSlide();
-  } else {
-    showScreen('screen-sign');
-    buildSignSummary();
-    initCanvas();
-  }
-}
-
-function prevSlide() {
-  stopTimer();
-  if (session.currentIndex > 0) {
-    session.currentIndex--;
-    renderSlide();
-  } else {
-    showScreen('screen-list');
-    buildList();
-  }
-}
-
-// ===== 4. サイン画面 =====
-function buildSignSummary() {
-  const grid = document.getElementById('signSummaryGrid');
-  grid.innerHTML = '';
-  session.activeItems.forEach(ai => {
-    const div = document.createElement('div');
-    div.className = 'sign-summary-item';
-    div.innerHTML = `<span class="chk">✓</span>${ai.item.name}`;
-    grid.appendChild(div);
+// ===== SIGN =====
+function buildSignGrid() {
+  const g=document.getElementById('signGrid'); g.innerHTML='';
+  sess.items.forEach(it=>{
+    const d=document.createElement('div');
+    d.className='sign-item';
+    d.innerHTML=`<span class="chk">✓</span>${it.n}`;
+    g.appendChild(d);
   });
 }
 
-let isDrawing = false, lastX = 0, lastY = 0;
-
+let drawing=false, lx=0, ly=0;
 function initCanvas() {
-  const canvas = document.getElementById('signCanvas');
-  const rect = canvas.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width  = rect.width * dpr;
-  canvas.height = rect.height * dpr;
-  const ctx = canvas.getContext('2d');
-  ctx.scale(dpr, dpr);
-  ctx.strokeStyle = '#000000';          /* color.neutral.black */
-  ctx.lineWidth = 2.5;                  /* border.width.md */
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-  function getPos(e) {
-    const r = canvas.getBoundingClientRect();
-    const src = e.touches ? e.touches[0] : e;
-    return [src.clientX - r.left, src.clientY - r.top];
-  }
-
-  canvas.addEventListener('touchstart', e => {
-    e.preventDefault();
-    isDrawing = true;
-    [lastX, lastY] = getPos(e);
-    canvas.classList.add('has-sign');
-  }, { passive: false });
-
-  canvas.addEventListener('touchmove', e => {
-    e.preventDefault();
-    if (!isDrawing) return;
-    const [x, y] = getPos(e);
-    ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(x, y); ctx.stroke();
-    [lastX, lastY] = [x, y];
-  }, { passive: false });
-
-  canvas.addEventListener('touchend', () => { isDrawing = false; });
-
-  canvas.addEventListener('mousedown', e => {
-    isDrawing = true;
-    [lastX, lastY] = getPos(e);
-    canvas.classList.add('has-sign');
-  });
-  canvas.addEventListener('mousemove', e => {
-    if (!isDrawing) return;
-    const [x, y] = getPos(e);
-    ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(x, y); ctx.stroke();
-    [lastX, lastY] = [x, y];
-  });
-  canvas.addEventListener('mouseup',    () => { isDrawing = false; });
-  canvas.addEventListener('mouseleave', () => { isDrawing = false; });
+  const cv=document.getElementById('signCanvas');
+  const r=cv.getBoundingClientRect(), dpr=window.devicePixelRatio||1;
+  cv.width=r.width*dpr; cv.height=r.height*dpr;
+  const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr);
+  ctx.strokeStyle='#000'; ctx.lineWidth=2.5; ctx.lineCap='round'; ctx.lineJoin='round';
+  const pos=e=>{const r=cv.getBoundingClientRect(),s=e.touches?e.touches[0]:e;return[s.clientX-r.left,s.clientY-r.top];};
+  cv.addEventListener('touchstart',e=>{e.preventDefault();drawing=true;[lx,ly]=pos(e);cv.classList.add('signed');},{passive:false});
+  cv.addEventListener('touchmove', e=>{e.preventDefault();if(!drawing)return;const[x,y]=pos(e);ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(x,y);ctx.stroke();[lx,ly]=[x,y];},{passive:false});
+  cv.addEventListener('touchend', ()=>{drawing=false;});
+  cv.addEventListener('mousedown', e=>{drawing=true;[lx,ly]=pos(e);cv.classList.add('signed');});
+  cv.addEventListener('mousemove', e=>{if(!drawing)return;const[x,y]=pos(e);ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(x,y);ctx.stroke();[lx,ly]=[x,y];});
+  cv.addEventListener('mouseup',   ()=>{drawing=false;});
+  cv.addEventListener('mouseleave',()=>{drawing=false;});
 }
-
 function clearSign() {
-  const canvas = document.getElementById('signCanvas');
-  canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-  canvas.classList.remove('has-sign');
+  const cv=document.getElementById('signCanvas');
+  cv.getContext('2d').clearRect(0,0,cv.width,cv.height);
+  cv.classList.remove('signed');
 }
 
-// ===== 5. 完了 =====
-function completeSession() {
-  session.signData = document.getElementById('signCanvas').toDataURL('image/png');
-
-  const totalSec = session.activeItems.reduce((sum, ai) => sum + ai.duration, 0);
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  const now = new Date();
-
-  document.getElementById('statItems').textContent  = session.activeItems.length;
-  document.getElementById('statTime').textContent   = `${m}:${String(s).padStart(2,'0')}`;
-  document.getElementById('statClock').textContent  = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
-  document.getElementById('completeSubText').textContent = `${session.customerName}、ありがとうございました`;
-
-  showScreen('screen-complete');
+// ===== COMPLETE =====
+function doComplete() {
+  sess.signData=document.getElementById('signCanvas').toDataURL('image/png');
+  const tot=sess.items.reduce((s,it)=>s+it.dur,0);
+  const now=new Date();
+  document.getElementById('stItems').textContent=sess.items.length;
+  document.getElementById('stTime').textContent =`${Math.floor(tot/60)}:${String(tot%60).padStart(2,'0')}`;
+  document.getElementById('stClock').textContent=`${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+  document.getElementById('completeSub').textContent=`${sess.customer}、ありがとうございました`;
+  phase='complete'; show('sc-complete'); syncNav();
 }
 
-// ===== 印刷 =====
-function printCertificate() {
-  const now = new Date();
-  const dateStr = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
-
-  document.getElementById('printStaff').textContent    = session.staffName;
-  document.getElementById('printStaff2').textContent   = session.staffName;
-  document.getElementById('printCustomer').textContent = session.customerName;
-  document.getElementById('printCar').textContent      = session.carName;
-  document.getElementById('printDate').textContent     = dateStr;
-  document.getElementById('printSign').src             = session.signData;
-
-  const items = document.getElementById('printItems');
-  items.innerHTML = '';
-  session.activeItems.forEach(ai => {
-    const div = document.createElement('div');
-    div.className = 'print-item';
-    div.innerHTML = `<span class="print-item-chk">✓</span>${ai.item.name}`;
-    items.appendChild(div);
+// ===== PRINT =====
+function doPrint() {
+  const now=new Date();
+  const d=`${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+  document.getElementById('pStaff').textContent   =sess.staff;
+  document.getElementById('pStaff2').textContent  =sess.staff;
+  document.getElementById('pCustomer').textContent=sess.customer;
+  document.getElementById('pCar').textContent     =sess.car;
+  document.getElementById('pDate').textContent    =d;
+  document.getElementById('pSign').src            =sess.signData;
+  const el=document.getElementById('pItems'); el.innerHTML='';
+  sess.items.forEach(it=>{
+    const div=document.createElement('div');
+    div.className='print-item';
+    div.innerHTML=`<span class="p-chk">✓</span>${it.n}`;
+    el.appendChild(div);
   });
-
   window.print();
 }
 
 function resetAll() {
-  clearInterval(session.timerInterval);
-  document.getElementById('staffName').value    = '';
-  document.getElementById('customerName').value = '';
-  document.getElementById('carName').value      = '';
-  showScreen('screen-welcome');
+  clearInterval(sess.tInterval);
+  phase='welcome';
+  document.getElementById('staffName').value='';
+  document.getElementById('customerName').value='';
+  document.getElementById('carName').value='';
+  show('sc-welcome'); setStep(1); syncNav();
 }
+
+// 初期化
+syncNav();
 </script>
 </body>
 </html>
