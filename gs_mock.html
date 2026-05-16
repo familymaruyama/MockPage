@@ -165,7 +165,8 @@
     position: relative;
   }
 
-  #map { flex: 1; min-height: 0; }
+  /* z-index: 0 でLeaflet内部のz-index（200〜700）をこの要素内に封じ込める */
+  #map { flex: 1; min-height: 0; position: relative; z-index: 0; }
 
   /* ===== サイドバー（PC） ===== */
   .sidebar {
