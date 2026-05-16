@@ -2,342 +2,1181 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>提携ガソリンスタンドマップ｜ファミリーカー</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Family提携SS">
+<meta name="theme-color" content="#E57138">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="favicon.ico">
+<title>提携ガソリンスタンドマップ｜ファミリー</title>
 
-<!-- Leaflet (OpenStreetMap表示用ライブラリ) -->
+<!-- Noto Sans JP（wght拡張: 500/600追加） -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+<!-- QRコード生成 -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+
 <style>
-  /* ===== 基本スタイル ===== */
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  /* ===== デザイントークン ===== */
+  :root {
+    --color-primary:    #E57138;
+    --color-primary-l1: #EA8B56;
+    --color-primary-l2: #EFA576;
+    --color-primary-l3: #F5C19B;
+    --color-primary-l4: #FADCC4;
+    --color-primary-l5: #FDF0E8;
+    --color-accent-red:  #E83E25;
+    --color-text-primary:   #1A1A1A; /* コントラスト比 16:1 */
+    --color-text-secondary: #444444; /* コントラスト比  9:1 */
+    --color-text-muted:     #666666; /* コントラスト比 5.7:1 ← WCAG AA 達成 */
+    --color-bg-white:  #FFFFFF;
+    --color-bg-subtle: #F9FAFB;
+    --color-bg-beige:  #FFF5EC;
+    --color-border:    #EBEBEB;
+    --font-sans: "Noto Sans JP", "Hiragino Sans", -apple-system, sans-serif;
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 14px;
+    --radius-xl: 20px;
+    --spacing-xs: 8px;
+    --spacing-sm: 12px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    /* z-indexシステム（整理済み） */
+    --z-sheet:      100;
+    --z-btn:        150;
+    --z-header:     200;
+    --z-loading:    300;
+    --z-modal:      400;
+    --z-modal-top:  500;
+  }
+
+  /* ===== リセット ===== */
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+    height: -webkit-fill-available;
+  }
+
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
-    color: #222;
-    background: #f5f5f5;
+    font-family: var(--font-sans);
+    color: var(--color-text-primary);
+    background: var(--color-bg-white);
     height: 100vh;
+    height: 100dvh;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+    line-height: 1.6;
+    overscroll-behavior: none;
+    /* 全体のタップハイライト無効化 */
+    -webkit-tap-highlight-color: transparent;
   }
 
   /* ===== ヘッダー ===== */
   header {
-    background: #1a3a6c; /* 仮：ファミリーカーのコーポレートカラーに合わせて調整 */
+    background: var(--color-primary);
     color: #fff;
-    padding: 12px 16px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    z-index: 1000;
+    padding: var(--spacing-sm) var(--spacing-md);
+    /* iOS Safe Area（ノッチ・Dynamic Island対応） */
+    padding-top: calc(var(--spacing-sm) + env(safe-area-inset-top));
+    box-shadow: 0 2px 8px rgba(229,113,56,0.25);
+    z-index: var(--z-header);
+    flex-shrink: 0;
   }
+
+  .header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+  }
+
+  .header-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    min-width: 0;
+    flex: 1;
+  }
+
+  .header-fuel-icon { flex-shrink: 0; }
+
+  .header-texts { min-width: 0; }
+
   header h1 {
-    font-size: 16px;
-    font-weight: 600;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
+
   header p {
     font-size: 12px;
+    font-weight: 400;
     opacity: 0.85;
     margin-top: 2px;
+    letter-spacing: 0.01em;
   }
+
+  /* ===== QRボタン ===== */
+  .qr-btn {
+    background: rgba(255,255,255,0.15);
+    border: 1.5px solid rgba(255,255,255,0.4);
+    color: #fff;
+    border-radius: var(--radius-md);
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: background 0.15s ease-out;
+    flex-shrink: 0;
+    min-height: 44px; /* タッチターゲット基準 */
+    letter-spacing: 0.02em;
+  }
+  .qr-btn:active { background: rgba(255,255,255,0.3); }
 
   /* ===== レイアウト ===== */
   .container {
     flex: 1;
     display: flex;
     overflow: hidden;
-  }
-  #map {
-    flex: 1;
-    min-height: 300px;
-  }
-  .sidebar {
-    width: 320px;
-    background: #fff;
-    overflow-y: auto;
-    border-left: 1px solid #ddd;
+    position: relative;
   }
 
-  /* スマホ用：縦並び */
-  @media (max-width: 768px) {
-    .container { flex-direction: column; }
-    #map { height: 45vh; flex: none; }
-    .sidebar { width: 100%; border-left: none; border-top: 1px solid #ddd; }
+  #map { flex: 1; min-height: 0; }
+
+  /* ===== サイドバー（PC） ===== */
+  .sidebar {
+    width: 340px;
+    background: var(--color-bg-white);
+    overflow-y: auto;
+    border-left: 1px solid var(--color-border);
+    flex-shrink: 0;
+    /* スクロールバー非表示（PC） */
+    scrollbar-width: none;
   }
+  .sidebar::-webkit-scrollbar { display: none; }
 
   /* ===== 現在地ボタン ===== */
   .locate-btn {
     position: absolute;
-    top: 76px;
-    right: 12px;
-    z-index: 999;
-    background: #fff;
-    border: none;
+    bottom: var(--spacing-lg);
+    right: var(--spacing-sm);
+    z-index: var(--z-btn);
+    background: var(--color-bg-white);
+    border: 1.5px solid var(--color-primary-l3);
     border-radius: 50%;
-    width: 44px;
-    height: 44px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-    font-size: 20px;
+    width: 48px;
+    height: 48px;
+    box-shadow: 0 2px 8px rgba(229,113,56,0.18), 0 1px 3px rgba(0,0,0,0.06);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: box-shadow 0.15s ease-out, transform 0.1s ease;
   }
-  .locate-btn:active { background: #e8f0ff; }
+  .locate-btn:active {
+    background: var(--color-primary-l5);
+    transform: scale(0.93);
+  }
+  .locate-btn.loading { animation: pulse 1.2s ease-in-out infinite; }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 2px 8px rgba(229,113,56,0.18); }
+    50%       { box-shadow: 0 4px 20px rgba(229,113,56,0.45); }
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ===== ボトムシート（スマホ） ===== */
+  @media (max-width: 768px) {
+    .sidebar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      height: 72vh;
+      border-left: none;
+      border-top: none;
+      border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+      box-shadow: 0 -4px 24px rgba(0,0,0,0.12), 0 -1px 0 rgba(0,0,0,0.04);
+      z-index: var(--z-sheet);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transform: translateY(calc(100% - 72px));
+      transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+      /* iOS Safe Area（ホームバー対応） */
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .sidebar.expanded { transform: translateY(44px); }
+
+    /* 現在地ボタンをボトムシートの上に配置 */
+    .locate-btn {
+      bottom: calc(72px + var(--spacing-md) + env(safe-area-inset-bottom));
+    }
+  }
+
+  /* ===== シートハンドルエリア ===== */
+  .sheet-handle-area {
+    flex-shrink: 0;
+    padding: 10px var(--spacing-md) 8px;
+    cursor: pointer;
+    background: var(--color-bg-white);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+    border-bottom: 1px solid var(--color-border);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  }
+
+  .sheet-handle {
+    width: 36px;
+    height: 4px;
+    background: #D0D0D0;
+    border-radius: 2px;
+  }
+
+  .sheet-handle-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-xs);
+  }
+
+  /* ===== 地図に戻るボタン ===== */
+  .map-back-btn {
+    display: none;
+    align-items: center;
+    gap: 4px;
+    background: var(--color-primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    flex-shrink: 0;
+    min-height: 36px;
+    transition: background 0.15s ease-out;
+  }
+  .sidebar.expanded .map-back-btn { display: flex; }
+  .map-back-btn:active { background: var(--color-primary-l1); }
+
+  /* ===== シートコンテンツ ===== */
+  .sheet-content {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    /* スクロールバー非表示 */
+    scrollbar-width: none;
+  }
+  .sheet-content::-webkit-scrollbar { display: none; }
+
+  /* ===== 店舗数表示 ===== */
+  .store-count {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    min-width: 0;
+    flex: 1;
+  }
+  .store-count strong {
+    color: var(--color-primary);
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .count-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
   /* ===== 店舗カード ===== */
   .store-card {
-    padding: 14px 16px;
-    border-bottom: 1px solid #eee;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
     cursor: pointer;
-    transition: background 0.15s;
+    transition: background 0.12s ease-out;
+    /* タップハイライト無効化 */
+    -webkit-tap-highlight-color: transparent;
   }
-  .store-card:hover { background: #f8faff; }
-  .store-card.active { background: #eaf2ff; border-left: 4px solid #1a3a6c; }
+  .store-card:hover  { background: var(--color-bg-beige); }
+  .store-card:active { background: var(--color-primary-l5); }
+  .store-card.active {
+    background: var(--color-primary-l4);
+    border-left: 3px solid var(--color-primary);
+    padding-left: calc(var(--spacing-md) - 3px);
+  }
 
+  /* 店舗名 */
   .store-name {
     font-size: 15px;
     font-weight: 600;
-    margin-bottom: 4px;
+    color: var(--color-text-primary);
+    margin-bottom: 5px;
+    line-height: 1.4;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
   }
+
+  /* 距離 */
   .store-distance {
-    font-size: 12px;
-    color: #1a3a6c;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
     font-weight: 600;
+    color: var(--color-primary);
     margin-bottom: 4px;
   }
+
+  /* 住所（修正: 12px → 14px） */
   .store-address {
-    font-size: 12px;
-    color: #666;
-    margin-bottom: 6px;
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    font-size: 14px;
+    color: var(--color-text-muted);
+    margin-bottom: 4px;
+    line-height: 1.55;
   }
+  .store-address .addr-icon { flex-shrink: 0; margin-top: 2px; }
+
+  /* 営業時間（修正: 12px → 13px / #888 → #666） */
   .store-hours {
-    font-size: 11px;
-    color: #888;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    color: var(--color-text-muted);
+    margin-bottom: 3px;
   }
-  .store-discount {
-    display: inline-block;
-    background: #fff3e0;
-    color: #d84315;
-    font-size: 11px;
-    padding: 2px 8px;
-    border-radius: 4px;
-    margin-top: 6px;
+
+  /* 電話番号（修正: 12px → 13px / #888 → #666） */
+  .store-tel {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    color: var(--color-text-muted);
+    margin-bottom: 2px;
+  }
+  .store-tel a {
+    color: var(--color-primary);
+    text-decoration: none;
     font-weight: 600;
   }
+
+  /* ナビボタン（修正: 44px タッチターゲット確保） */
   .nav-btn {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: var(--spacing-xs);
+    padding: 10px var(--spacing-md);
+    min-height: 44px;
+    background: var(--color-primary);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    text-decoration: none;
+    border-radius: var(--radius-md);
+    transition: background 0.15s ease-out, transform 0.1s ease;
+    letter-spacing: 0.01em;
+  }
+  .nav-btn:active {
+    background: var(--color-primary-l1);
+    transform: scale(0.97);
+  }
+
+  /* ===== 自社SSカード ===== */
+  .store-card.own-store {
+    background: var(--color-bg-beige);
+    border-left: 3px solid var(--color-accent-red);
+    padding-left: calc(var(--spacing-md) - 3px);
+  }
+  .store-card.own-store:hover  { background: var(--color-primary-l4); }
+  .store-card.own-store.active { background: var(--color-primary-l4); }
+
+  .own-badge {
+    display: inline-flex;
+    align-items: center;
+    background: var(--color-accent-red);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: var(--radius-sm);
+    letter-spacing: 0.06em;
+    flex-shrink: 0;
+  }
+
+  /* ===== ローディング ===== */
+  .loading-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.88);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xs);
+    z-index: var(--z-loading);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-primary);
+  }
+  .loading-overlay.hidden { display: none; }
+
+  /* ===== エラー ===== */
+  .error-msg {
+    padding: var(--spacing-lg);
+    text-align: center;
+    color: var(--color-accent-red);
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  /* ===== QRモーダル ===== */
+  .qr-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(3px);
+    z-index: var(--z-modal);
+    align-items: center;
+    justify-content: center;
+  }
+  .qr-modal-overlay.visible { display: flex; }
+
+  .qr-modal {
+    background: var(--color-bg-white);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    text-align: center;
+    max-width: 320px;
+    width: 90%;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2), 0 4px 12px rgba(0,0,0,0.08);
+  }
+  .qr-modal h2 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: var(--spacing-xs);
+    color: var(--color-text-primary);
+  }
+  .qr-modal p {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-md);
+    line-height: 1.6;
+  }
+  .qr-modal img {
+    display: block;
+    margin: 0 auto var(--spacing-md);
+    width: 200px;
+    height: 200px;
+    image-rendering: pixelated;
+    border-radius: var(--radius-md);
+  }
+  .qr-modal-url {
+    font-size: 11px;
+    color: var(--color-primary);
+    font-weight: 600;
+    word-break: break-all;
+    margin-bottom: var(--spacing-md);
+    background: var(--color-primary-l5);
+    padding: 6px var(--spacing-xs);
+    border-radius: var(--radius-sm);
+  }
+  .qr-modal-close {
+    background: var(--color-primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 12px var(--spacing-lg);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    transition: background 0.15s ease-out;
+    min-height: 48px;
+    width: 100%;
+  }
+  .qr-modal-close:active { background: var(--color-primary-l1); }
+
+  /* ===== ホーム画面追加バナー ===== */
+  .a2hs-banner {
+    display: none;
+    background: var(--color-bg-beige);
+    border-bottom: 1px solid var(--color-primary-l3);
+    padding: 10px var(--spacing-md);
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex-shrink: 0;
+    z-index: var(--z-header);
+  }
+  .a2hs-banner.visible { display: flex; }
+  .a2hs-banner span {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+  }
+  .a2hs-add-btn {
+    background: var(--color-primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    flex-shrink: 0;
+    min-height: 40px;
+    transition: background 0.15s;
+  }
+  .a2hs-add-btn:active { background: var(--color-primary-l1); }
+  .a2hs-dismiss-btn {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    min-height: 36px;
+    border-radius: var(--radius-md);
+    transition: background 0.12s;
+  }
+  .a2hs-dismiss-btn:active { background: rgba(0,0,0,0.06); }
+
+  /* ===== iOS手順モーダル ===== */
+  .ios-a2hs-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(3px);
+    z-index: var(--z-modal-top);
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+  }
+  .ios-a2hs-overlay.visible { display: flex; }
+
+  .ios-a2hs-modal {
+    background: var(--color-bg-white);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    width: 90%;
+    max-width: 360px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    text-align: center;
+  }
+  .ios-a2hs-modal h2 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: var(--spacing-md);
+  }
+  .ios-a2hs-modal .step {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    text-align: left;
+    margin-bottom: var(--spacing-sm);
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+  }
+  .step-num {
+    background: var(--color-primary);
+    color: #fff;
+    border-radius: 50%;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .ios-a2hs-close {
+    margin-top: var(--spacing-md);
+    background: var(--color-primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 12px var(--spacing-lg);
+    font-size: 14px;
+    font-weight: 700;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    width: 100%;
+    min-height: 48px;
+    transition: background 0.15s;
+  }
+  .ios-a2hs-close:active { background: var(--color-primary-l1); }
+
+  /* ===== Leafletポップアップ（インラインスタイルを廃止しCSSで管理） ===== */
+  .leaflet-popup-content-wrapper {
+    border-radius: var(--radius-md) !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06) !important;
+    padding: 0 !important;
+  }
+  .leaflet-popup-content {
+    margin: 0 !important;
+    font-family: var(--font-sans) !important;
+  }
+  .popup-inner {
+    padding: 12px 14px;
+    min-width: 180px;
+  }
+  .popup-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+    line-height: 1.4;
+  }
+  .popup-address {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin-bottom: 6px;
+    line-height: 1.5;
+  }
+  .popup-meta {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin-bottom: 3px;
+    line-height: 1.4;
+  }
+  .popup-meta a {
+    color: var(--color-primary);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .popup-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     margin-top: 8px;
-    padding: 6px 14px;
-    background: #1a3a6c;
+    padding: 7px 12px;
+    background: var(--color-primary);
     color: #fff;
     font-size: 12px;
+    font-weight: 700;
     text-decoration: none;
-    border-radius: 4px;
-    font-weight: 600;
+    border-radius: var(--radius-md);
+    font-family: var(--font-sans);
+    transition: background 0.15s;
   }
-  .nav-btn:active { background: #0d2750; }
-
-  /* ===== 凡例 / 注意書き ===== */
-  .legend {
-    padding: 12px 16px;
-    font-size: 11px;
-    color: #888;
-    background: #fafafa;
-    border-bottom: 1px solid #eee;
-  }
+  .popup-nav:active { background: var(--color-primary-l1); }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>⛽ 提携ガソリンスタンドマップ</h1>
-  <p>ファミリーカーの会員様は割引価格で給油できます</p>
+  <div class="header-inner">
+    <div class="header-title-wrap">
+      <!-- 燃料ポンプアイコン（インラインSVG） -->
+      <svg class="header-fuel-icon" width="22" height="22" viewBox="0 0 24 24" fill="none"
+           stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="22" x2="15" y2="22"/>
+        <line x1="4" y1="9"  x2="14" y2="9"/>
+        <path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18"/>
+        <path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2 2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5"/>
+      </svg>
+      <div class="header-texts">
+        <h1>提携ガソリンスタンドマップ</h1>
+        <p>ファミリーの提携SSをマップで確認</p>
+      </div>
+    </div>
+    <button class="qr-btn" id="qrBtn">
+      <!-- QRアイコン（インラインSVG） -->
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3"  y="3"  width="7" height="7"/>
+        <rect x="14" y="3"  width="7" height="7"/>
+        <rect x="14" y="14" width="7" height="7"/>
+        <rect x="3"  y="14" width="7" height="7"/>
+        <rect x="5"  y="5"  width="3" height="3"/>
+        <rect x="16" y="5"  width="3" height="3"/>
+        <rect x="16" y="16" width="3" height="3"/>
+        <rect x="5"  y="16" width="3" height="3"/>
+      </svg>
+      QR
+    </button>
+  </div>
 </header>
+
+<!-- ホーム画面追加バナー -->
+<div class="a2hs-banner" id="a2hsBanner">
+  <span>ホーム画面に追加できます</span>
+  <button class="a2hs-add-btn" id="a2hsAddBtn">追加</button>
+  <button class="a2hs-dismiss-btn" id="a2hsDismissBtn">&#215;</button>
+</div>
+
+<!-- iOS手順モーダル -->
+<div class="ios-a2hs-overlay" id="iosA2hsOverlay">
+  <div class="ios-a2hs-modal">
+    <h2>ホーム画面に追加</h2>
+    <div class="step"><div class="step-num">1</div><span>画面下の <strong>共有ボタン（&#9633;&#8593;）</strong> をタップ</span></div>
+    <div class="step"><div class="step-num">2</div><span><strong>「ホーム画面に追加」</strong> を選択</span></div>
+    <div class="step"><div class="step-num">3</div><span>右上の <strong>「追加」</strong> をタップ</span></div>
+    <button class="ios-a2hs-close" id="iosA2hsClose">閉じる</button>
+  </div>
+</div>
+
+<!-- QRモーダル -->
+<div class="qr-modal-overlay" id="qrOverlay">
+  <div class="qr-modal">
+    <h2>このページをシェア</h2>
+    <p>QRコードを読み取ると<br>スマートフォンでご覧いただけます</p>
+    <div id="qrImage"></div>
+    <div class="qr-modal-url">https://centlink-family.com/gsmap</div>
+    <button class="qr-modal-close" id="qrClose">閉じる</button>
+  </div>
+</div>
 
 <div class="container">
   <div id="map"></div>
-  <button class="locate-btn" id="locateBtn" title="現在地を取得">📍</button>
 
-  <div class="sidebar">
-    <div class="legend">
-      🔵 提携SS / 🔴 現在地<br>
-      タップで地図上の位置に移動します
+  <!-- ローディング（スピナー付き） -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2.5" stroke-linecap="round"
+         style="animation: spin 1s linear infinite; flex-shrink:0;">
+      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+    </svg>
+    読み込み中...
+  </div>
+
+  <!-- 現在地ボタン（照準SVG） -->
+  <button class="locate-btn" id="locateBtn" title="現在地を取得">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+         stroke="#E57138" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="4"/>
+      <line x1="12" y1="2"  x2="12" y2="6"/>
+      <line x1="12" y1="18" x2="12" y2="22"/>
+      <line x1="2"  y1="12" x2="6"  y2="12"/>
+      <line x1="18" y1="12" x2="22" y2="12"/>
+    </svg>
+  </button>
+
+  <!-- ボトムシート / サイドバー -->
+  <div class="sidebar" id="bottomSheet">
+    <div class="sheet-handle-area" id="sheetHandle">
+      <div class="sheet-handle"></div>
+      <div class="sheet-handle-row">
+        <div class="store-count" id="storeCount"></div>
+        <button class="map-back-btn" id="mapBackBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+          地図
+        </button>
+      </div>
     </div>
-    <div id="storeList"></div>
+    <div class="sheet-content">
+      <div id="storeList"></div>
+    </div>
   </div>
 </div>
 
 <script>
-  // ===== 提携SSの仮データ（本実装時はスプレッドシート連携） =====
-  const stores = [
-    {
-      id: 1,
-      name: "ENEOS 可児中央SS",
-      address: "岐阜県可児市広見1-1-1",
-      lat: 35.4262,
-      lng: 137.0612,
-      hours: "7:00 - 22:00",
-      discount: "会員様 リッター3円引き"
-    },
-    {
-      id: 2,
-      name: "出光 可児広見SS",
-      address: "岐阜県可児市広見5-2-3",
-      lat: 35.4310,
-      lng: 137.0680,
-      hours: "24時間営業",
-      discount: "会員様 リッター2円引き"
-    },
-    {
-      id: 3,
-      name: "コスモ石油 各務原蘇原SS",
-      address: "岐阜県各務原市蘇原東門町2-50",
-      lat: 35.4030,
-      lng: 136.8550,
-      hours: "7:00 - 21:00",
-      discount: "会員様 リッター3円引き＋洗車割引"
-    },
-    {
-      id: 4,
-      name: "ENEOS 各務原那加SS",
-      address: "岐阜県各務原市那加桐野町1-12",
-      lat: 35.3950,
-      lng: 136.8400,
-      hours: "6:30 - 22:00",
-      discount: "会員様 リッター3円引き"
-    },
-    {
-      id: 5,
-      name: "出光 可児今渡SS",
-      address: "岐阜県可児市今渡1234",
-      lat: 35.4400,
-      lng: 137.0470,
-      hours: "7:00 - 21:00",
-      discount: "会員様 リッター2円引き"
-    }
+  // ===== 設定 =====
+  const API_URL = 'https://script.google.com/macros/s/AKfycbwnAPy_DRUVdW2iscpbMSnsOil-F5jqq9bbzgoNxXsG9Ln0VnvkX3lTUWae-UBXzP_zvg/exec';
+
+  // フォールバック用ローカルデータ
+  const LOCAL_STORES = [
+    { id: 10,  name: "e-smartstation",         address: "岐阜県可児市瀬田430-1",              lat: 35.42823855, lng: 137.08371513, hours: "", tel: "" },
+    { id: 20,  name: "サンタモニカオアシスSS",  address: "岐阜県多治見市光ヶ丘5丁目39",         lat: 35.34638539, lng: 137.11094955, hours: "", tel: "" },
+    { id: 30,  name: "サンタモニカ東町SS",      address: "岐阜県多治見市東町4丁目9-15",         lat: 35.32868903, lng: 137.15037261, hours: "", tel: "" },
+    { id: 40,  name: "サンタモニカ幸町SS",      address: "岐阜県多治見市幸町3丁目7-1",          lat: 35.35521792, lng: 137.09218183, hours: "", tel: "" },
+    { id: 50,  name: "サンタモニカ瑞浪SS",      address: "岐阜県瑞浪市穂並3丁目3-52",          lat: 35.35312352, lng: 137.24718403, hours: "", tel: "" },
+    { id: 60,  name: "カーパドック各務原SS",    address: "岐阜県各務原市三井町2丁目59-1",        lat: 35.39184496, lng: 136.83391816, hours: "", tel: "" },
+    { id: 70,  name: "セルフ各務原SS",          address: "岐阜県各務原市那加巾下町61",           lat: 35.40956450, lng: 136.84649682, hours: "", tel: "" },
+    { id: 80,  name: "セルフ岐南SS",            address: "岐阜県羽島郡岐南町伏屋2丁目1",         lat: 35.38818354, lng: 136.78934645, hours: "", tel: "" },
+    { id: 90,  name: "セルフウォッシュ岐南SS",  address: "岐阜県羽島郡岐南町平成6丁目9",         lat: 35.38293538, lng: 136.78417515, hours: "", tel: "" },
+    { id: 100, name: "セルフ岐南インター北SS",  address: "岐阜県羽島郡岐南町上印食5丁目171",     lat: 35.39409606, lng: 136.78552698, hours: "", tel: "" },
+    { id: 110, name: "セルフカーパドック長良SS",address: "岐阜県岐阜市長良東2丁目1",             lat: 35.44983109, lng: 136.78552681, hours: "", tel: "" },
+    { id: 120, name: "セルフ東興SS",            address: "岐阜県岐阜市東興町50-50",             lat: 35.41649100, lng: 136.78421798, hours: "", tel: "" },
+    { id: 130, name: "セルフ美濃加茂東SS",      address: "岐阜県美濃加茂市田島町4丁目3-3",       lat: 35.44845991, lng: 137.02677085, hours: "", tel: "" },
+    { id: 140, name: "セルフ関旭ヶ丘SS",        address: "岐阜県関市円保通2丁目1-10",           lat: 35.48853189, lng: 136.92823916, hours: "", tel: "" },
+    { id: 150, name: "セルフ川辺SS",            address: "岐阜県加茂郡川辺町西栃井1736-5",      lat: 35.48439243, lng: 137.06457355, hours: "", tel: "" },
+    { id: 160, name: "セルフ郡上八幡SS",        address: "岐阜県郡上市八幡町稲成1158-1",        lat: 35.73317817, lng: 136.95376575, hours: "", tel: "" }
   ];
 
-  // ===== 地図の初期化（可児市を中心に） =====
-  const map = L.map('map').setView([35.4262, 137.0612], 12);
+  // ===== 地図初期化 =====
+  const map = L.map('map');
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors',
-    maxZoom: 19
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 18
   }).addTo(map);
 
-  // ===== 提携SSのピンを配置 =====
-  const markers = {};
-  stores.forEach(store => {
-    const marker = L.marker([store.lat, store.lng]).addTo(map);
-    marker.bindPopup(`
-      <strong>${store.name}</strong><br>
-      ${store.address}<br>
-      <span style="color:#d84315;font-weight:600;">${store.discount}</span><br>
-      <a href="https://www.google.com/maps/dir/?api=1&destination=${store.lat},${store.lng}"
-         target="_blank" style="color:#1a3a6c;font-weight:600;">▶ ナビ開始</a>
-    `);
-    markers[store.id] = marker;
+  const OWN_STORE_ID = 10;
+
+  // カスタムアイコン（提携SS: オレンジ丸 + "SS"テキスト）
+  const stationIcon = L.divIcon({
+    html: '<div style="background:#E57138;color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;box-shadow:0 2px 6px rgba(229,113,56,0.4);border:2px solid #fff;font-family:sans-serif;letter-spacing:0.02em;">SS</div>',
+    className: '',
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+    popupAnchor: [0, -20]
   });
 
-  // ===== 店舗リストの描画 =====
-  let userLatLng = null;
-  function renderStoreList() {
-    const list = document.getElementById('storeList');
-    list.innerHTML = '';
+  // 自社SSアイコン（赤丸・大 + "自社SS"）
+  const ownStoreIcon = L.divIcon({
+    html: '<div style="background:#E83E25;color:#fff;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;box-shadow:0 3px 10px rgba(232,62,37,0.45);border:3px solid #fff;text-align:center;line-height:1.3;font-family:sans-serif;">自社<br>SS</div>',
+    className: '',
+    iconSize: [42, 42],
+    iconAnchor: [21, 21],
+    popupAnchor: [0, -25]
+  });
 
-    // 現在地があれば距離でソート
-    let sortedStores = [...stores];
-    if (userLatLng) {
-      sortedStores.forEach(s => {
-        s._distance = getDistance(userLatLng.lat, userLatLng.lng, s.lat, s.lng);
-      });
-      sortedStores.sort((a, b) => a._distance - b._distance);
+  let stores    = [];
+  let markers   = {};
+  let userLatLng  = null;
+  let userMarker  = null;
+
+  // ===== ポップアップHTML生成（CSSクラスで管理） =====
+  function buildPopupHtml(store, isOwn) {
+    const badge  = isOwn ? '<span class="own-badge">自社SS</span>' : '';
+    const hours  = store.hours ? `<div class="popup-meta">営業 ${store.hours}</div>` : '';
+    const tel    = store.tel   ? `<div class="popup-meta">TEL <a href="tel:${store.tel}">${store.tel}</a></div>` : '';
+    return `
+      <div class="popup-inner">
+        <div class="popup-name">${store.name}${badge}</div>
+        <div class="popup-address">${store.address}</div>
+        ${hours}${tel}
+        <a class="popup-nav"
+           href="https://www.google.com/maps/dir/?api=1&destination=${store.lat},${store.lng}"
+           target="_blank" rel="noopener">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+          </svg>
+          ナビで開く
+        </a>
+      </div>`;
+  }
+
+  // ===== データ取得 =====
+  async function loadStores() {
+    // ローカルデータで即時表示
+    stores = LOCAL_STORES;
+    initMap();
+
+    // バックグラウンドでGASから最新データを差し替え
+    if (!API_URL) return;
+    try {
+      const res  = await fetch(API_URL);
+      const json = await res.json();
+      if (json.stores && json.stores.length > 0) {
+        Object.values(markers).forEach(m => map.removeLayer(m));
+        markers = {};
+        stores  = json.stores;
+        stores.forEach(store => {
+          const isOwn  = store.id === OWN_STORE_ID;
+          const icon   = isOwn ? ownStoreIcon : stationIcon;
+          const marker = L.marker([store.lat, store.lng], { icon, zIndexOffset: isOwn ? 1000 : 0 }).addTo(map);
+          marker.bindPopup(buildPopupHtml(store, isOwn), { maxWidth: 260 });
+          markers[store.id] = marker;
+        });
+        renderStoreList();
+      }
+    } catch (e) {
+      console.warn('GAS取得失敗、ローカルデータを継続使用:', e);
+    }
+  }
+
+  // ===== 地図にピン配置 =====
+  function initMap() {
+    document.getElementById('loadingOverlay').classList.add('hidden');
+
+    if (stores.length === 0) {
+      document.getElementById('storeList').innerHTML = '<div class="error-msg">店舗データが見つかりませんでした</div>';
+      map.setView([35.42, 137.06], 10);
+      return;
     }
 
-    sortedStores.forEach(store => {
-      const card = document.createElement('div');
-      card.className = 'store-card';
-      card.innerHTML = `
-        <div class="store-name">${store.name}</div>
-        ${store._distance !== undefined
-          ? `<div class="store-distance">📍 現在地から約 ${store._distance.toFixed(1)} km</div>`
-          : ''}
-        <div class="store-address">${store.address}</div>
-        <div class="store-hours">🕐 ${store.hours}</div>
-        <div class="store-discount">${store.discount}</div>
-        <br>
-        <a class="nav-btn"
-           href="https://www.google.com/maps/dir/?api=1&destination=${store.lat},${store.lng}"
-           target="_blank"
-           onclick="event.stopPropagation();">▶ ナビ開始</a>
-      `;
-      // カードクリックで地図フォーカス
+    const bounds = [];
+    stores.forEach(store => {
+      const isOwn  = store.id === OWN_STORE_ID;
+      const icon   = isOwn ? ownStoreIcon : stationIcon;
+      const marker = L.marker([store.lat, store.lng], { icon, zIndexOffset: isOwn ? 1000 : 0 }).addTo(map);
+      marker.bindPopup(buildPopupHtml(store, isOwn), { maxWidth: 260 });
+      markers[store.id] = marker;
+      bounds.push([store.lat, store.lng]);
+    });
+
+    map.fitBounds(bounds, { padding: [40, 40] });
+    renderStoreList();
+  }
+
+  // ===== 店舗リスト描画 =====
+  function renderStoreList() {
+    const countEl = document.getElementById('storeCount');
+    const listEl  = document.getElementById('storeList');
+    listEl.innerHTML = '';
+
+    let sorted = [...stores];
+    if (userLatLng) {
+      sorted.forEach(s => { s._distance = getDistance(userLatLng.lat, userLatLng.lng, s.lat, s.lng); });
+      sorted.sort((a, b) => a._distance - b._distance);
+      countEl.innerHTML = `<strong>${stores.length}</strong><span class="count-label">件（現在地から近い順）</span>`;
+    } else {
+      countEl.innerHTML = `<strong>${stores.length}</strong><span class="count-label">件の提携SS</span>`;
+    }
+
+    // 位置アイコンSVG（再利用）
+    const iconPin  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`;
+    const iconClock = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+    const iconPhone = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6 6l.94-.94a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7a2 2 0 0 1 1.72 2.01z"/></svg>`;
+    const iconNav   = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>`;
+
+    sorted.forEach(store => {
+      const isOwn = store.id === OWN_STORE_ID;
+      const card  = document.createElement('div');
+      card.className = 'store-card' + (isOwn ? ' own-store' : '');
+
+      let html = `<div class="store-name">${store.name}${isOwn ? '<span class="own-badge">自社SS</span>' : ''}</div>`;
+
+      if (store._distance !== undefined) {
+        html += `<div class="store-distance">${iconPin} 約 ${store._distance.toFixed(1)} km</div>`;
+      }
+
+      html += `<div class="store-address"><span class="addr-icon">${iconPin}</span>${store.address}</div>`;
+
+      if (store.hours) {
+        html += `<div class="store-hours">${iconClock} ${store.hours}</div>`;
+      }
+      if (store.tel) {
+        html += `<div class="store-tel">${iconPhone} <a href="tel:${store.tel}">${store.tel}</a></div>`;
+      }
+
+      html += `<a class="nav-btn"
+        href="https://www.google.com/maps/dir/?api=1&destination=${store.lat},${store.lng}"
+        target="_blank" rel="noopener"
+        onclick="event.stopPropagation();">${iconNav} ナビで開く</a>`;
+
+      card.innerHTML = html;
       card.addEventListener('click', () => {
         map.setView([store.lat, store.lng], 16);
         markers[store.id].openPopup();
         document.querySelectorAll('.store-card').forEach(c => c.classList.remove('active'));
         card.classList.add('active');
+        if (window.innerWidth <= 768) setSheetExpanded(false);
       });
-      list.appendChild(card);
+      listEl.appendChild(card);
     });
   }
-  renderStoreList();
 
-  // ===== 2点間の距離（km）を計算（ハーバサイン公式） =====
+  // ===== 距離計算（ハーバサイン） =====
   function getDistance(lat1, lng1, lat2, lng2) {
-    const R = 6371; // 地球の半径(km)
+    const R    = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) ** 2 +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLng/2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const a    = Math.sin(dLat / 2) ** 2 +
+                 Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                 Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
   // ===== 現在地取得 =====
-  let userMarker = null;
   function locateUser() {
     if (!navigator.geolocation) {
       alert('お使いのブラウザは位置情報に対応していません');
       return;
     }
+    const btn = document.getElementById('locateBtn');
+    btn.classList.add('loading');
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
+        btn.classList.remove('loading');
+        const { latitude: lat, longitude: lng } = pos.coords;
         userLatLng = { lat, lng };
 
-        // 既存の現在地マーカーを削除
         if (userMarker) map.removeLayer(userMarker);
-
-        // 赤い現在地マーカーを表示
         userMarker = L.circleMarker([lat, lng], {
-          radius: 10,
-          fillColor: '#e53935',
-          color: '#fff',
-          weight: 3,
-          fillOpacity: 1
+          radius: 10, fillColor: '#3B82F6', color: '#fff', weight: 3, fillOpacity: 1
         }).addTo(map).bindPopup('現在地').openPopup();
 
-        // 現在地と最寄りSSが両方見えるようにフィット
         const nearest = stores
           .map(s => ({ ...s, d: getDistance(lat, lng, s.lat, s.lng) }))
           .sort((a, b) => a.d - b.d)[0];
-        const bounds = L.latLngBounds([[lat, lng], [nearest.lat, nearest.lng]]);
-        map.fitBounds(bounds, { padding: [60, 60] });
-
-        // 距離順でリスト再描画
+        if (nearest) {
+          map.fitBounds(L.latLngBounds([[lat, lng], [nearest.lat, nearest.lng]]), { padding: [60, 60] });
+        }
         renderStoreList();
       },
-      (err) => {
-        alert('位置情報を取得できませんでした：' + err.message);
+      () => {
+        btn.classList.remove('loading');
+        alert('位置情報を取得できませんでした');
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }
   document.getElementById('locateBtn').addEventListener('click', locateUser);
 
-  // ===== 初回ロード時、自動で現在地取得を試みる（任意） =====
-  // 自動取得したくない場合はコメントアウト
-  // locateUser();
+  // ===== QRモーダル =====
+  const qrOverlay = document.getElementById('qrOverlay');
+  let qrGenerated = false;
+
+  document.getElementById('qrBtn').addEventListener('click', () => {
+    qrOverlay.classList.add('visible');
+    if (!qrGenerated) {
+      const qr = qrcode(0, 'M');
+      qr.addData('https://centlink-family.com/gsmap');
+      qr.make();
+      document.getElementById('qrImage').innerHTML = qr.createImgTag(6, 0);
+      qrGenerated = true;
+    }
+  });
+  document.getElementById('qrClose').addEventListener('click', () => qrOverlay.classList.remove('visible'));
+  qrOverlay.addEventListener('click', e => { if (e.target === qrOverlay) qrOverlay.classList.remove('visible'); });
+
+  // ===== Service Worker =====
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+
+  // ===== ボトムシート制御 =====
+  const sheet       = document.getElementById('bottomSheet');
+  const sheetHandle = document.getElementById('sheetHandle');
+  let sheetExpanded = false;
+  let touchStartY   = 0;
+  let touchStartTime = 0;
+
+  function setSheetExpanded(expanded) {
+    sheetExpanded = expanded;
+    sheet.classList.toggle('expanded', expanded);
+    if (!expanded) map.invalidateSize();
+  }
+
+  sheetHandle.addEventListener('touchstart', e => {
+    touchStartY   = e.touches[0].clientY;
+    touchStartTime = Date.now();
+  }, { passive: true });
+
+  sheetHandle.addEventListener('touchend', e => {
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    const dt = Date.now() - touchStartTime;
+    if (Math.abs(dy) < 10 && dt < 250) {
+      setSheetExpanded(!sheetExpanded);  // タップでトグル
+    } else if (dy < -30) {
+      setSheetExpanded(true);            // 上スワイプで展開
+    } else if (dy > 30) {
+      setSheetExpanded(false);           // 下スワイプで収納
+    }
+  }, { passive: true });
+
+  sheetHandle.addEventListener('click', () => {
+    if (window.innerWidth > 768) return;
+    setSheetExpanded(!sheetExpanded);
+  });
+
+  document.getElementById('storeCount').addEventListener('click', () => {
+    if (window.innerWidth > 768) return;
+    setSheetExpanded(!sheetExpanded);
+  });
+
+  document.getElementById('mapBackBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    setSheetExpanded(false);
+  });
+
+  // ===== PWAインストールプロンプト =====
+  let deferredPrompt = null;
+
+  function isIosSafari() {
+    const ua = navigator.userAgent;
+    return /iphone|ipad|ipod/i.test(ua) && /safari/i.test(ua) && !/chrome|crios|fxios/i.test(ua);
+  }
+  function isStandalone() {
+    return navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+  }
+
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (!isStandalone()) document.getElementById('a2hsBanner').classList.add('visible');
+  });
+
+  if (isIosSafari() && !isStandalone()) {
+    setTimeout(() => document.getElementById('a2hsBanner').classList.add('visible'), 1500);
+  }
+
+  document.getElementById('a2hsAddBtn').addEventListener('click', async () => {
+    document.getElementById('a2hsBanner').classList.remove('visible');
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+    } else if (isIosSafari()) {
+      document.getElementById('iosA2hsOverlay').classList.add('visible');
+    }
+  });
+
+  document.getElementById('a2hsDismissBtn').addEventListener('click', () => {
+    document.getElementById('a2hsBanner').classList.remove('visible');
+  });
+
+  document.getElementById('iosA2hsClose').addEventListener('click', () => {
+    document.getElementById('iosA2hsOverlay').classList.remove('visible');
+  });
+
+  // ===== 起動 =====
+  loadStores();
 </script>
 
 </body>
