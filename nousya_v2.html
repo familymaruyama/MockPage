@@ -1,0 +1,2039 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1194, initial-scale=1.0, user-scalable=no">
+  <title>納車マネージャー</title>
+  <!-- FDS フォント：Noto Sans（プライマリ）+ Bebas Neue（Gravita GEO の代替） -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+  <style>
+    /* ============================================================
+       FDS Tokens（family-design-system 完全準拠）
+       出典: references/brand-tokens.md
+       ============================================================ */
+    :root {
+      /* --- color.primary --- */
+      --p500: #E57138;
+      --p400: #EA8B56;
+      --p300: #EFA576;
+      --p200: #F5C19B;
+      --p100: #FADCC4;
+
+      /* --- color.accent --- */
+      --accent-red: #E83E25;
+
+      /* --- color.neutral --- */
+      --black: #000000;
+      --gray-1: #606060;
+      --gray-2: #888888;
+      --gray-3: #AFAFAF;
+
+      /* --- color.background --- */
+      --white: #FFFFFF;
+      --beige: #FFF0D9;
+
+      /* --- コンテンツ別カラー（FDSパレットより） --- */
+      --indoor-blue:  #0033D9; /* ロイヤルブルー：店内アクセント */
+      --indoor-blue-2:#99ADF0;
+      --outdoor-green:    #80CC3D; /* ナチュラルグリーン：お車アクセント */
+      --outdoor-green-2:  #CCEAAC;
+
+      /* --- セマンティック --- */
+      --surface:        var(--white);
+      --surface-sub:    var(--beige);
+      --text:           var(--black);
+      --text-sub:       var(--gray-1);
+      --line:           var(--p200);
+      --line-soft:      var(--p100);
+
+      /* --- shape (4-12px) --- */
+      --r-sm: 4px;
+      --r-md: 8px;
+      --r-lg: 12px;
+      --r-full: 9999px;
+
+      /* --- border-width --- */
+      --bw-sm: 1.5px;
+      --bw-md: 2.5px;
+      --bw-lg: 4px;
+
+      /* --- spacing --- */
+      --s-xxs: 4px;
+      --s-xs:  8px;
+      --s-sm:  12px;
+      --s-md:  16px;
+      --s-lg:  24px;
+      --s-xl:  32px;
+      --s-xxl: 48px;
+
+      /* --- typography --- */
+      --font-primary: 'Noto Sans JP', -apple-system, 'Hiragino Sans', sans-serif;
+      --font-accent:  'Gravita GEO', 'Bebas Neue', 'Noto Sans JP', sans-serif;
+
+      --fs-h-xl: 32px;
+      --fs-h-lg: 24px;
+      --fs-h-md: 20px;
+      --fs-b-lg: 16px;
+      --fs-b-md: 14px;
+      --fs-b-sm: 12px;
+      --fs-label: 11px;
+
+      --lh-tight:   1.3;
+      --lh-normal:  1.6;
+      --lh-relaxed: 1.8;
+
+      --ls-normal: 0;
+      --ls-wide:   0.05em;
+    }
+
+    /* ============================================================
+       Base
+       ============================================================ */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: var(--font-primary);
+      font-size: var(--fs-b-md);
+      font-weight: 400;
+      line-height: var(--lh-normal);
+      color: var(--text);
+      background: var(--beige);
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+      vertical-align: middle; user-select: none;
+    }
+
+    /* ============================================================
+       APP SHELL (11インチ iPad 横向き：1194 × 834pt)
+       ============================================================ */
+    .app {
+      max-width: 1194px;
+      margin: 0 auto;
+      min-height: 100vh;
+      background: var(--beige);
+      position: relative;
+    }
+
+    /* TOP BAR */
+    .top-bar {
+      position: sticky; top: 0; z-index: 40;
+      background: var(--white);
+      border-bottom: var(--bw-sm) solid var(--p200);
+      padding: var(--s-md) var(--s-xl);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .brand {
+      display: flex; align-items: center; gap: var(--s-sm);
+    }
+    .brand-mark {
+      width: 36px; height: 36px;
+      background: var(--p500);
+      border-radius: var(--r-md);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--white);
+      font-family: var(--font-accent);
+      font-size: 22px;
+      letter-spacing: 0.02em;
+    }
+    .brand-name {
+      font-family: var(--font-accent);
+      font-size: 22px;
+      letter-spacing: 0.12em;
+      color: var(--black);
+    }
+    .brand-sub {
+      font-family: var(--font-primary);
+      font-size: var(--fs-b-sm);
+      font-weight: 700;
+      letter-spacing: var(--ls-wide);
+      color: var(--text-sub);
+      margin-top: 2px;
+    }
+    .top-right {
+      display: flex; align-items: center; gap: var(--s-sm);
+    }
+    .home-link {
+      display: none;
+      align-items: center; gap: var(--s-xxs);
+      padding: 10px var(--s-md);
+      background: var(--white);
+      border: var(--bw-sm) solid var(--p200);
+      border-radius: var(--r-full);
+      font-size: var(--fs-b-sm);
+      font-weight: 700;
+      letter-spacing: var(--ls-wide);
+      color: var(--text);
+      cursor: pointer;
+      font-family: var(--font-primary);
+    }
+    .home-link.show { display: inline-flex; }
+    .home-link:active { background: var(--p100); }
+    .progress-pill {
+      display: none;
+      align-items: center; gap: var(--s-xxs);
+      padding: 10px var(--s-md);
+      background: var(--p100);
+      border: var(--bw-sm) solid var(--p200);
+      border-radius: var(--r-full);
+      font-size: var(--fs-b-sm);
+      font-weight: 700;
+      color: var(--p500);
+      letter-spacing: var(--ls-wide);
+      font-variant-numeric: tabular-nums;
+    }
+    .progress-pill.show { display: inline-flex; }
+    .progress-pill .material-symbols-outlined { font-size: 16px; }
+
+    /* CONTENT */
+    .content { padding: var(--s-xl) var(--s-xl) 120px; }
+
+    .screen { display: none; animation: fadeIn .25s ease both; }
+    .screen.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* BOTTOM NAV */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 100%; max-width: 1194px; z-index: 50;
+      background: var(--white);
+      border-top: var(--bw-sm) solid var(--p200);
+      padding: var(--s-md) var(--s-xl);
+      padding-bottom: max(var(--s-md), env(safe-area-inset-bottom));
+      display: flex; gap: var(--s-sm); align-items: center; justify-content: center;
+    }
+    .btn-back {
+      flex: 0 0 auto;
+      display: flex; align-items: center; gap: var(--s-xxs);
+      padding: 14px var(--s-lg);
+      background: var(--white);
+      color: var(--text);
+      font-size: var(--fs-b-md);
+      font-weight: 700;
+      letter-spacing: var(--ls-wide);
+      font-family: var(--font-primary);
+      border: var(--bw-sm) solid var(--p200);
+      border-radius: var(--r-full);
+      cursor: pointer;
+    }
+    .btn-back:active { background: var(--beige); }
+    .btn-fwd {
+      flex: 1; max-width: 560px;
+      display: flex; align-items: center; justify-content: center; gap: var(--s-xs);
+      padding: 18px var(--s-lg);
+      background: var(--p500);
+      color: var(--white);
+      font-size: var(--fs-b-lg);
+      font-weight: 700;
+      letter-spacing: var(--ls-wide);
+      font-family: var(--font-primary);
+      border: none;
+      border-radius: var(--r-full);
+      cursor: pointer;
+      transition: background .15s, transform .1s;
+    }
+    .btn-fwd:active { background: var(--p400); transform: scale(.985); }
+    .btn-fwd:disabled {
+      background: var(--p200);
+      color: var(--white);
+      cursor: default;
+    }
+
+    /* ============================================================
+       HOME（ウェルカム + ホーム 統合）
+       ============================================================ */
+
+    /* HERO */
+    .hero {
+      position: relative;
+      padding: var(--s-xxl) var(--s-md) var(--s-xl);
+      text-align: center;
+      overflow: hidden;
+      background: var(--white);
+      border-radius: var(--r-lg);
+      border: var(--bw-sm) solid var(--p200);
+      margin-bottom: var(--s-lg);
+    }
+    .hero::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: var(--bw-lg);
+      background: linear-gradient(90deg, var(--p500) 0%, var(--p400) 50%, var(--p500) 100%);
+    }
+
+    .hero-eyebrow {
+      display: flex; align-items: center; justify-content: center; gap: var(--s-md);
+      margin-bottom: var(--s-lg);
+    }
+    .hero-eyebrow .line {
+      flex: 0 0 80px; height: 2px; background: var(--p500); border-radius: 1px;
+    }
+    .hero-eyebrow .label {
+      font-family: var(--font-accent);
+      font-size: var(--fs-b-md);
+      letter-spacing: 0.32em;
+      color: var(--p500);
+    }
+    .hero-eyebrow .dot {
+      width: 6px; height: 6px;
+      background: var(--p500);
+      transform: rotate(45deg);
+    }
+
+    .hero-h1 {
+      font-family: var(--font-primary);
+      font-weight: 700;
+      font-size: var(--fs-h-lg);
+      line-height: var(--lh-tight);
+      letter-spacing: var(--ls-wide);
+      color: var(--text);
+      margin-bottom: var(--s-lg);
+    }
+    .hero-h1 .accent {
+      color: var(--p500);
+    }
+
+    .hero-name-frame {
+      display: inline-flex;
+      flex-direction: column; align-items: center;
+      gap: var(--s-xs);
+      padding: var(--s-md) var(--s-xl);
+      position: relative;
+    }
+    .hero-name-frame::before,
+    .hero-name-frame::after {
+      content: ''; position: absolute; top: 20%; bottom: 20%;
+      width: var(--bw-sm); background: var(--p500); border-radius: 1px;
+    }
+    .hero-name-frame::before { left: 0; }
+    .hero-name-frame::after  { right: 0; }
+
+    .hero-name {
+      font-family: var(--font-primary);
+      font-weight: 900;
+      font-size: 56px;
+      line-height: 1.2;
+      letter-spacing: var(--ls-wide);
+      color: var(--text);
+    }
+    .hero-name .sama {
+      font-size: 28px; font-weight: 700;
+      color: var(--p500);
+      margin-left: var(--s-xs);
+      letter-spacing: 0.08em;
+      vertical-align: 0.1em;
+    }
+    .hero-name .empty {
+      color: var(--gray-3);
+      font-weight: 700;
+      font-size: 32px;
+      letter-spacing: 0.08em;
+    }
+    .hero-car {
+      font-family: var(--font-accent);
+      font-size: var(--fs-b-md);
+      letter-spacing: 0.22em;
+      color: var(--text-sub);
+      text-transform: uppercase;
+    }
+    .hero-car .name-jp {
+      font-family: var(--font-primary);
+      font-weight: 700;
+      font-size: var(--fs-b-lg);
+      letter-spacing: var(--ls-wide);
+      color: var(--text);
+    }
+
+    .hero-foot {
+      margin-top: var(--s-lg);
+      display: flex; align-items: center; justify-content: center; gap: var(--s-md);
+      font-family: var(--font-accent);
+      font-size: var(--fs-label);
+      letter-spacing: 0.4em;
+      color: var(--text-sub);
+    }
+    .hero-foot .line {
+      flex: 0 0 60px; height: 1.5px; background: var(--p200); border-radius: 1px;
+    }
+
+    /* confetti */
+    .confetti-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+    .confetti {
+      position: absolute; top: -10px;
+      width: 8px; height: 14px;
+      opacity: 0;
+      animation: fall 5s linear forwards;
+      transform-origin: center;
+    }
+    @keyframes fall {
+      0%   { opacity: 0; transform: translateY(-20px) rotate(0deg); }
+      8%   { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { opacity: 0; transform: translateY(600px) rotate(720deg); }
+    }
+
+    /* ============================================================
+       FORM + DRINK + SECTIONS（11インチ横向き：横並びレイアウト）
+       ============================================================ */
+    .home-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: var(--s-lg);
+      align-items: start;
+    }
+
+    /* Form card */
+    .form-card {
+      background: var(--white);
+      border: var(--bw-sm) solid var(--p200);
+      border-radius: var(--r-lg);
+      padding: var(--s-lg) var(--s-lg);
+    }
+    .card-head {
+      display: flex; align-items: baseline; justify-content: space-between;
+      margin-bottom: var(--s-md);
+      padding-bottom: var(--s-sm);
+      border-bottom: var(--bw-sm) solid var(--line-soft);
+    }
+    .card-title {
+      font-family: var(--font-primary);
+      font-weight: 700;
+      font-size: var(--fs-h-md);
+      letter-spacing: var(--ls-wide);
+      color: var(--text);
+      display: flex; align-items: center; gap: var(--s-xs);
+    }
+    .card-title::before {
+      content: ''; width: var(--bw-lg); height: 20px; background: var(--p500); border-radius: 2px;
+    }
+    .card-title-en {
+      font-family: var(--font-accent);
+      font-size: var(--fs-b-md);
+      letter-spacing: 0.28em;
+      color: var(--text-sub);
+      text-transform: uppercase;
+    }
+
+    .form-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-md);
+    }
+    .form-cell.full { grid-column: 1 / -1; }
+    .form-lbl {
+      display: block;
+      font-family: var(--font-primary);
+      font-size: var(--fs-label);
+      font-weight: 700;
+      letter-spacing: var(--ls-wide);
+      color: var(--text-sub);
+      margin-bottom: var(--s-xxs);
+    }
+    .form-lbl .en {
+      font-family: var(--font-accent);
+      font-size: var(--fs-b-sm);
+      letter-spacing: 0.18em;
+      color: var(--p500);
+      margin-right: var(--s-xs);
+      text-transform: uppercase;
+    }
+    .form-inp {
+      width: 100%; padding: 12px 14px;
+      background: var(--beige);
+      border: var(--bw-sm) solid var(--p200);
+      border-radius: var(--r-md);
+      font-family: var(--font-primary);
+      font-size: var(--fs-b-lg);
+      font-weight: 400;
+      color: var(--text);
+      outline: none;
+      transition: border-color .15s, background .15s, box-shadow .15s;
+    }
+    .form-inp::placeholder { color: var(--gray-3); }
+    .form-inp:focus {
+      background: var(--white);
+      border-color: var(--p500);
+      box-shadow: 0 0 0 3px var(--p100);
+    }
+
+    /* Drink section */
+    .drink-bar {
+      margin-top: var(--s-lg);
+      padding-top: var(--s-md);
+      border-top: var(--bw-sm) dashed var(--line-soft);
+    }
+    .drink-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: var(--s-sm);
+    }
+    .drink-title {
+      font-family: var(--font-primary);
+      font-weight: 700;
+      font-size: var(--fs-b-lg);
+      letter-spacing: var(--ls-wide);
+      display: flex; align-items: center; gap: var(--s-xs);
+    }
+    .drink-title .material-symbols-outlined {
+      font-size: 22px; color: var(--p500);
+    }
+    .drink-title-en {
+      font-family: var(--font-accent);
+      font-size: var(--fs-b-md);
+      letter-spacing: 0.28em;
+      color: var(--text-sub);
+      text-transform: uppercase;
+    }
+    .drink-options {
+      display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--s-xs);
+    }
+    .drink-btn {
+      padding: var(--s-sm) var(--s-xxs);
+      background: var(--white);
+      border: var(--bw-sm) solid var(--p200);
+      border-radius: var(--r-md);
+      font-family: var(--font-primary);
+      font-size: var(--fs-b-sm);
+      font-weight: 700;
+      letter-spacing: var(--ls-wide);
+      color: var(--text);
+      cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: var(--s-xxs);
+      transition: all .15s;
+    }
+    .drink-btn .material-symbols-outlined {
+      font-size: 22px; color: var(--p500);
+    }
+    .drink-btn:active { background: var(--beige); }
+    .drink-btn.on {
+      background: var(--p500);
+      border-color: var(--p500);
+      color: var(--white);
+    }
+    .drink-btn.on .material-symbols-outlined { color: var(--white); }
+
+    /* Section column (右側) */
+    .section-col {
+      display: flex; flex-direction: column; gap: var(--s-lg);
+    }
+    .section-card {
+      position: relative;
+      background: var(--white);
+      border: var(--bw-sm) solid var(--p200);
+      border-radius: var(--r-lg);
+      padding: var(--s-lg);
+      cursor: pointer;
+      transition: transform .15s, box-shadow .2s, border-color .15s;
+      overflow: hidden;
+    }
+    .section-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: var(--bw-md);
+    }
+    .section-card.indoor::before  { background: var(--indoor-blue); }
+    .section-card.outdoor::before { background: var(--outdoor-green); }
+
+    .section-card:active { transform: scale(0.99); }
+    .section-card:hover {
+      box-shadow: 0 8px 24px rgba(229,113,56,0.10);
+    }
+    .section-card.indoor:hover  { border-color: var(--indoor-blue); }
+    .section-card.outdoor:hover { border-color: var(--outdoor-green); }
+    .section-card.done {
+      background: var(--beige);
+      border-color: var(--outdoor-green);
+    }
+
+    .sc-head {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-md);
+      margin-bottom: var(--s-md);
+    }
+    .sc-titlewrap { flex: 1; }
+    .sc-eyebrow {
+      font-family: var(--font-accent);
+      font-size: var(--fs-b-md);
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      margin-bottom: var(--s-xxs);
+    }
+    .section-card.indoor  .sc-eyebrow { color: var(--indoor-blue); }
+    .section-card.outdoor .sc-eyebrow { color: var(--outdoor-green); }
+    .sc-title {
+      font-family: var(--font-primary);
+      font-weight: 700;
+      font-size: var(--fs-h-md);
+      letter-spacing: var(--ls-wide);
+      color: var(--text);
+      line-height: var(--lh-tight);
+    }
+    .sc-title-en {
+      font-family: var(--font-accent);
+      font-size: var(--fs-b-sm);
+      letter-spacing: 0.24em;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      margin-top: var(--s-xxs);
+    }
+    .sc-icon {
+      width: 52px; height: 52px;
+      border-radius: var(--r-md);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .section-card.indoor  .sc-icon { background: var(--indoor-blue);  color: var(--white); }
+    .section-card.outdoor .sc-icon { background: var(--outdoor-green); color: var(--white); }
+    .sc-icon .material-symbols-outlined { font-size: 30px; }
+
+    .sc-status {
+      display: inline-flex; align-items: center; gap: var(--s-xxs);
+      padding: 5px var(--s-sm);
+      border-radius: var(--r-full);
+      font-family: var(--font-primary);
+      font-size: var(--fs-label);
+      font-weight: 700;
+      letter-spacing: var(--ls-wide);
+      background: var(--beige);
+      border: var(--bw-sm) solid var(--p200);
+      color: var(--text-sub);
+      margin-bottom: var(--s-md);
+    }
+    .sc-status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gray-3); }
+    .section-card.progress .sc-status { background: var(--p100); border-color: var(--p200); color: var(--p500); }
+    .section-card.progress .sc-status .dot { background: var(--p500); animation: pulse 1.4s infinite; }
+    .section-card.done .sc-status { background: var(--outdoor-green-2); border-color: var(--outdoor-green); color: #3d6b14; }
+    .section-card.done .sc-status .dot { background: var(--outdoor-green); }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+
+    .sc-meta {
+      display: flex; align-items: baseline; gap: var(--s-md);
+      padding: var(--s-sm) 0;
+      border-top: var(--bw-sm) solid var(--line-soft);
+      border-bottom: var(--bw-sm) solid var(--line-soft);
+      margin-bottom: var(--s-md);
+    }
+    .sc-meta-cell { flex: 1; }
+    .sc-meta-lbl {
+      font-family: var(--font-accent);
+      font-size: var(--fs-label);
+      letter-spacing: 0.24em;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    .sc-meta-val {
+      font-family: var(--font-primary);
+      font-weight: 700;
+      font-size: var(--fs-h-lg);
+      line-height: 1;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+    .sc-meta-val small {
+      font-size: var(--fs-b-md);
+      color: var(--text-sub);
+      font-weight: 700;
+      margin-left: var(--s-xxs);
+    }
+
+    .sc-prog {
+      display: flex; align-items: center; gap: var(--s-sm);
+      margin-bottom: var(--s-md);
+    }
+    .sc-prog-bar {
+      flex: 1; height: 6px; border-radius: 3px;
+      background: var(--line-soft); overflow: hidden;
+    }
+    .sc-prog-fill {
+      height: 100%; width: 0%;
+      transition: width .4s cubic-bezier(.2,.8,.2,1);
+      border-radius: 3px;
+    }
+    .section-card.indoor  .sc-prog-fill { background: var(--indoor-blue); }
+    .section-card.outdoor .sc-prog-fill { background: var(--outdoor-green); }
+    .section-card.done    .sc-prog-fill { background: var(--outdoor-green); }
+    .sc-prog-num {
+      font-family: var(--font-primary);
+      font-weight: 700;
+      font-size: var(--fs-b-md);
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: var(--ls-wide);
+    }
+    .sc-prog-num small { color: var(--text-sub); font-weight: 700; }
+
+    .sc-cta {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-top: var(--s-xs);
+    }
+    .sc-cta-text {
+      font-family: var(--font-primary);
+      font-weight: 700;
+      font-size: var(--fs-b-lg);
+      letter-spacing: var(--ls-wide);
+      color: var(--text);
+    }
+    .sc-cta-arrow {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--white);
+      transition: transform .25s;
+    }
+    .section-card.indoor  .sc-cta-arrow { background: var(--indoor-blue); }
+    .section-card.outdoor .sc-cta-arrow { background: var(--outdoor-green); }
+    .section-card.done    .sc-cta-arrow { background: var(--outdoor-green); }
+    .section-card:hover .sc-cta-arrow { transform: translateX(4px); }
+
+    /* All-complete banner */
+    .complete-banner {
+      margin-top: var(--s-lg);
+      padding: var(--s-md) var(--s-lg);
+      background: var(--black); color: var(--white);
+      border-radius: var(--r-lg);
+      display: none;
+      align-items: center; gap: var(--s-sm);
+      position: relative; overflow: hidden;
+    }
+    .complete-banner.show { display: flex; animation: fadeIn .3s ease both; }
+    .complete-banner::after {
+      content: ''; position: absolute; top: 0; right: 0; bottom: 0;
+      width: var(--bw-lg); background: var(--p500);
+    }
+    .complete-banner .material-symbols-outlined { font-size: 28px; color: var(--p300); }
+    .complete-banner-text {
+      flex: 1;
+      font-family: var(--font-primary);
+      font-weight: 700;
+      font-size: var(--fs-b-lg);
+      letter-spacing: var(--ls-wide);
+    }
+
+    /* ============================================================
+       SECTION DETAIL（アコーディオン）
+       ============================================================ */
+    .sec-detail-head {
+      display: flex; align-items: center; gap: var(--s-md);
+      padding: var(--s-md) var(--s-lg);
+      background: var(--white);
+      border: var(--bw-sm) solid var(--p200);
+      border-radius: var(--r-lg);
+      margin-bottom: var(--s-md);
+      position: relative;
+    }
+    .sec-detail-head::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: var(--bw-md);
+      border-radius: var(--r-lg) var(--r-lg) 0 0;
+    }
+    .screen.is-indoor  .sec-detail-head::before { background: var(--indoor-blue); }
+    .screen.is-outdoor .sec-detail-head::before { background: var(--outdoor-green); }
+    .sec-detail-icon {
+      width: 48px; height: 48px;
+      border-radius: var(--r-md);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--white);
+      flex-shrink: 0;
+    }
+    .screen.is-indoor  .sec-detail-icon { background: var(--indoor-blue); }
+    .screen.is-outdoor .sec-detail-icon { background: var(--outdoor-green); }
+    .sec-detail-icon .material-symbols-outlined { font-size: 28px; }
+    .sec-detail-meta { flex: 1; }
+    .sec-detail-eyebrow {
+      font-family: var(--font-accent);
+      font-size: var(--fs-b-md);
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+    }
+    .screen.is-indoor  .sec-detail-eyebrow { color: var(--indoor-blue); }
+    .screen.is-outdoor .sec-detail-eyebrow { color: var(--outdoor-green); }
+    .sec-detail-title {
+      font-family: var(--font-primary);
+      font-weight: 700;
+      font-size: var(--fs-h-lg);
+      letter-spacing: var(--ls-wide);
+      color: var(--text);
+      line-height: var(--lh-tight);
+    }
+    .sec-detail-counter {
+      font-family: var(--font-primary);
+      font-weight: 700;
+      font-size: var(--fs-b-lg);
+      letter-spacing: var(--ls-wide);
+      padding: var(--s-xs) var(--s-md);
+      background: var(--p100);
+      border: var(--bw-sm) solid var(--p200);
+      border-radius: var(--r-full);
+      color: var(--p500);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Accordion item */
+    .acc-item {
+      background: var(--white);
+      border: var(--bw-sm) solid var(--p200);
+      border-radius: var(--r-lg);
+      margin-bottom: var(--s-sm);
+      overflow: hidden;
+      transition: border-color .15s;
+    }
+    .acc-item:hover { border-color: var(--p500); }
+    .acc-item.checked { border-color: var(--outdoor-green); }
+
+    .acc-head {
+      display: flex; align-items: center; gap: var(--s-sm);
+      padding: var(--s-md) var(--s-lg);
+      cursor: pointer; user-select: none;
+    }
+    .acc-num {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      border: var(--bw-md) solid var(--p200);
+      background: var(--white);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-accent);
+      font-size: var(--fs-b-lg);
+      color: var(--text);
+      flex-shrink: 0;
+      font-variant-numeric: tabular-nums;
+    }
+    .acc-item.checked .acc-num {
+      background: var(--outdoor-green);
+      border-color: var(--outdoor-green);
+      color: var(--white);
+    }
+    .acc-item.checked .acc-num span:not(.material-symbols-outlined) { display: none; }
+    .acc-num .material-symbols-outlined {
+      display: none; color: var(--white); font-size: 22px;
+      font-variation-settings: 'FILL' 1, 'wght' 700;
+    }
+    .acc-item.checked .acc-num .material-symbols-outlined { display: block; }
+    .acc-title {
+      flex: 1;
+      font-family: var(--font-primary);
+      font-weight: 700;
+      font-size: var(--fs-h-md);
+      letter-spacing: var(--ls-wide);
+      color: var(--text);
+      line-height: var(--lh-tight);
+    }
+    .acc-badge {
+      display: inline-flex; align-items: center;
+      padding: 4px 10px;
+      border-radius: var(--r-full);
+      font-family: var(--font-primary);
+      font-size: var(--fs-label);
+      font-weight: 700;
+      letter-spacing: var(--ls-wide);
+      background: var(--white);
+      border: var(--bw-sm) solid var(--accent-red);
+      color: var(--accent-red);
+      flex-shrink: 0;
+    }
+    .acc-toggle {
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-sub);
+      transition: transform .25s;
+      flex-shrink: 0;
+    }
+    .acc-item.open .acc-toggle { transform: rotate(180deg); color: var(--p500); }
+
+    .acc-body {
+      max-height: 0; overflow: hidden;
+      transition: max-height .4s cubic-bezier(.2,.8,.2,1);
+    }
+    .acc-item.open .acc-body { max-height: 1600px; }
+    .acc-body-inner {
+      padding: 0 var(--s-lg) var(--s-lg);
+      border-top: var(--bw-sm) dashed var(--line-soft);
+      padding-top: var(--s-lg);
+      display: grid; grid-template-columns: 1.05fr 1fr; gap: var(--s-lg);
+    }
+
+    /* Visual area */
+    .visual-area {
+      background: var(--beige);
+      border: var(--bw-sm) solid var(--p200);
+      border-radius: var(--r-md);
+      overflow: hidden;
+      display: flex; flex-direction: column;
+      min-height: 260px;
+    }
+    .visual-stage {
+      flex: 1;
+      display: flex; align-items: center; justify-content: center;
+      background:
+        radial-gradient(circle at 30% 30%, var(--p100), transparent 60%),
+        radial-gradient(circle at 70% 80%, var(--p100), transparent 60%),
+        var(--beige);
+      position: relative;
+      min-height: 220px;
+    }
+    .visual-emoji {
+      font-size: 88px;
+    }
+    .visual-tag {
+      position: absolute; top: var(--s-sm); left: var(--s-sm);
+      background: var(--black); color: var(--white);
+      padding: 5px var(--s-sm);
+      border-radius: var(--r-full);
+      font-family: var(--font-accent);
+      font-size: var(--fs-label);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      display: flex; align-items: center; gap: var(--s-xxs);
+    }
+    .visual-tag .material-symbols-outlined { font-size: 14px; }
+    .visual-tabs {
+      display: flex; border-top: var(--bw-sm) solid var(--p200);
+      background: var(--white);
+    }
+    .visual-tab {
+      flex: 1; padding: var(--s-sm);
+      background: none; border: none; cursor: pointer;
+      font-family: var(--font-primary);
+      font-size: var(--fs-b-md);
+      font-weight: 700;
+      letter-spacing: var(--ls-wide);
+      color: var(--text-sub);
+      display: flex; align-items: center; justify-content: center; gap: var(--s-xxs);
+      border-right: var(--bw-sm) solid var(--p200);
+      transition: all .15s;
+    }
+    .visual-tab:last-child { border-right: none; }
+    .visual-tab .material-symbols-outlined { font-size: 18px; }
+    .visual-tab.on {
+      background: var(--p100);
+      color: var(--p500);
+      border-bottom: var(--bw-md) solid var(--p500);
+    }
+
+    .info-area { display: flex; flex-direction: column; gap: var(--s-md); }
+    .acc-desc {
+      font-family: var(--font-primary);
+      font-size: var(--fs-b-lg);
+      line-height: var(--lh-relaxed);
+      color: var(--text);
+      padding: var(--s-md) var(--s-md);
+      background: var(--beige);
+      border-radius: var(--r-md);
+      position: relative;
+    }
+    .acc-desc::before {
+      content: ''; position: absolute; left: 0; top: var(--s-xs); bottom: var(--s-xs);
+      width: var(--bw-md); background: var(--p500); border-radius: 2px;
+    }
+
+    .acc-extra-lbl {
+      display: block;
+      font-family: var(--font-primary);
+      font-size: var(--fs-label);
+      font-weight: 700;
+      letter-spacing: var(--ls-wide);
+      color: var(--text-sub);
+      margin-bottom: var(--s-xxs);
+    }
+    .acc-extra-lbl .en {
+      font-family: var(--font-accent);
+      font-size: var(--fs-b-sm);
+      letter-spacing: 0.22em;
+      color: var(--p500);
+      text-transform: uppercase;
+      margin-right: var(--s-xxs);
+    }
+    .acc-extra textarea,
+    .acc-extra select,
+    .acc-extra input {
+      width: 100%; padding: 10px 12px;
+      background: var(--white);
+      border: var(--bw-sm) solid var(--p200);
+      border-radius: var(--r-md);
+      font-family: var(--font-primary);
+      font-size: var(--fs-b-md);
+      color: var(--text);
+      outline: none;
+    }
+    .acc-extra textarea { min-height: 72px; resize: vertical; line-height: var(--lh-normal); }
+    .acc-extra textarea:focus, .acc-extra select:focus, .acc-extra input:focus {
+      border-color: var(--p500);
+      box-shadow: 0 0 0 3px var(--p100);
+    }
+    .acc-extra .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-xs); }
+
+    .check-btn {
+      width: 100%;
+      padding: 14px var(--s-md);
+      margin-top: auto;
+      background: var(--white);
+      color: var(--text);
+      border: var(--bw-md) solid var(--black);
+      border-radius: var(--r-full);
+      font-family: var(--font-primary);
+      font-weight: 700;
+      font-size: var(--fs-b-lg);
+      letter-spacing: var(--ls-wide);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: var(--s-xs);
+      transition: background .15s, color .15s, border-color .15s;
+    }
+    .check-btn:active { background: var(--beige); }
+    .check-btn .material-symbols-outlined { font-size: 22px; }
+    .check-btn.on {
+      background: var(--outdoor-green);
+      border-color: var(--outdoor-green);
+      color: var(--white);
+    }
+
+    /* Photo */
+    .photo-area {
+      padding: var(--s-md);
+      background: var(--beige);
+      border: var(--bw-sm) dashed var(--p200);
+      border-radius: var(--r-md);
+    }
+    .photo-row {
+      display: flex; gap: var(--s-xs); flex-wrap: wrap;
+      margin-bottom: var(--s-sm); min-height: 96px;
+    }
+    .photo-thumb {
+      width: 96px; height: 96px; border-radius: var(--r-sm);
+      background: var(--white);
+      border: var(--bw-sm) solid var(--p200);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-sub); font-size: 32px;
+    }
+    .photo-actions { display: flex; gap: var(--s-xs); flex-wrap: wrap; }
+    .photo-btn {
+      padding: 10px var(--s-md);
+      background: var(--white);
+      border: var(--bw-sm) solid var(--p200);
+      border-radius: var(--r-full);
+      font-family: var(--font-primary);
+      font-size: var(--fs-b-md);
+      font-weight: 700;
+      letter-spacing: var(--ls-wide);
+      color: var(--text);
+      cursor: pointer;
+      display: flex; align-items: center; gap: var(--s-xxs);
+    }
+    .photo-btn.primary { background: var(--p500); border-color: var(--p500); color: var(--white); }
+    .photo-btn .material-symbols-outlined { font-size: 18px; }
+    .send-status {
+      margin-top: var(--s-xs);
+      display: none; align-items: center; gap: var(--s-xxs);
+      font-family: var(--font-primary);
+      font-size: var(--fs-b-md);
+      font-weight: 700;
+      letter-spacing: var(--ls-wide);
+      color: var(--outdoor-green);
+    }
+    .send-status.show { display: flex; }
+
+    /* Options */
+    .opt-list { display: grid; gap: var(--s-xxs); }
+    .opt-row {
+      display: flex; align-items: center; gap: var(--s-sm);
+      padding: var(--s-sm) var(--s-md);
+      background: var(--white);
+      border: var(--bw-sm) solid var(--p200);
+      border-radius: var(--r-md);
+      cursor: pointer;
+    }
+    .opt-row:hover { border-color: var(--p500); }
+    .opt-row.on {
+      background: var(--p100);
+      border-color: var(--p500);
+    }
+    .opt-box {
+      width: 22px; height: 22px;
+      border: var(--bw-md) solid var(--p200);
+      background: var(--white);
+      border-radius: var(--r-sm);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .opt-row.on .opt-box { background: var(--p500); border-color: var(--p500); }
+    .opt-box .material-symbols-outlined {
+      color: var(--white); font-size: 14px; display: none;
+      font-variation-settings: 'FILL' 1, 'wght' 700;
+    }
+    .opt-row.on .opt-box .material-symbols-outlined { display: block; }
+    .opt-lbl {
+      font-family: var(--font-primary);
+      font-size: var(--fs-b-lg);
+      color: var(--text);
+    }
+
+    /* ============================================================
+       SIGN
+       ============================================================ */
+    .sign-summary {
+      background: var(--white);
+      border: var(--bw-sm) solid var(--p200);
+      border-radius: var(--r-lg);
+      padding: var(--s-lg);
+      margin-bottom: var(--s-md);
+      position: relative;
+    }
+    .sign-summary::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: var(--bw-md);
+      background: var(--p500);
+      border-radius: var(--r-lg) var(--r-lg) 0 0;
+    }
+    .sign-summary-ttl {
+      font-family: var(--font-primary);
+      font-weight: 700;
+      font-size: var(--fs-h-md);
+      letter-spacing: var(--ls-wide);
+      margin-bottom: var(--s-md);
+      display: flex; align-items: center; gap: var(--s-xs);
+    }
+    .sign-summary-ttl::before {
+      content: ''; width: var(--bw-lg); height: 18px; background: var(--p500); border-radius: 2px;
+    }
+    .sign-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--s-xs) var(--s-md);
+    }
+    .sign-item {
+      display: flex; align-items: flex-start; gap: var(--s-xxs);
+      font-family: var(--font-primary);
+      font-size: var(--fs-b-md);
+      color: var(--text);
+      line-height: var(--lh-normal);
+    }
+    .sign-item .chk { color: var(--outdoor-green); font-weight: 700; flex-shrink: 0; }
+
+    .sign-canvas-card {
+      background: var(--white);
+      border: var(--bw-sm) solid var(--p200);
+      border-radius: var(--r-lg);
+      padding: var(--s-lg);
+    }
+    .sign-ttl {
+      font-family: var(--font-primary);
+      font-weight: 700;
+      font-size: var(--fs-h-md);
+      letter-spacing: var(--ls-wide);
+      margin-bottom: var(--s-xxs);
+    }
+    .sign-sub {
+      font-family: var(--font-primary);
+      font-size: var(--fs-b-md);
+      color: var(--text-sub);
+      margin-bottom: var(--s-md);
+      line-height: var(--lh-normal);
+    }
+    #signCanvas {
+      width: 100%; height: 200px;
+      border: var(--bw-md) dashed var(--p200);
+      border-radius: var(--r-md);
+      touch-action: none; cursor: crosshair; display: block;
+      background: var(--beige);
+    }
+    #signCanvas.signed { border-style: solid; border-color: var(--outdoor-green); }
+    .clear-btn {
+      margin-top: var(--s-xs);
+      background: none; border: none;
+      font-family: var(--font-primary);
+      font-size: var(--fs-b-md);
+      font-weight: 700;
+      letter-spacing: var(--ls-wide);
+      color: var(--text-sub);
+      cursor: pointer;
+      text-decoration: underline;
+      padding: var(--s-xxs) 0;
+    }
+
+    /* ============================================================
+       COMPLETE
+       ============================================================ */
+    .complete-wrap {
+      display: flex; flex-direction: column;
+      align-items: center; text-align: center;
+      padding: var(--s-xxl) var(--s-md);
+    }
+    .complete-eyebrow {
+      font-family: var(--font-accent);
+      font-size: var(--fs-b-md);
+      letter-spacing: 0.4em;
+      text-transform: uppercase;
+      color: var(--p500);
+      margin-bottom: var(--s-md);
+    }
+    .complete-h {
+      font-family: var(--font-primary);
+      font-weight: 700;
+      font-size: var(--fs-h-xl);
+      letter-spacing: var(--ls-wide);
+      line-height: var(--lh-tight);
+      margin-bottom: var(--s-sm);
+    }
+    .complete-sub {
+      font-family: var(--font-primary);
+      font-size: var(--fs-b-lg);
+      color: var(--text-sub);
+      margin-bottom: var(--s-xl);
+      line-height: var(--lh-normal);
+    }
+    .stats-card {
+      background: var(--white);
+      border: var(--bw-sm) solid var(--p200);
+      border-radius: var(--r-lg);
+      padding: var(--s-lg);
+      display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-lg);
+      width: 100%; max-width: 460px;
+      margin-bottom: var(--s-lg);
+    }
+    .stat-val {
+      font-family: var(--font-primary);
+      font-weight: 700;
+      font-size: var(--fs-h-xl);
+      line-height: 1;
+      color: var(--p500);
+      display: block;
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-lbl {
+      font-family: var(--font-accent);
+      font-size: var(--fs-b-md);
+      letter-spacing: 0.24em;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      margin-top: var(--s-xs);
+      display: block;
+    }
+
+    .btn-print {
+      width: 100%; max-width: 460px;
+      padding: 16px var(--s-md);
+      background: var(--black); color: var(--white);
+      font-family: var(--font-primary);
+      font-weight: 700;
+      font-size: var(--fs-b-lg);
+      letter-spacing: var(--ls-wide);
+      border: none;
+      border-radius: var(--r-full);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: var(--s-xs);
+      margin-bottom: var(--s-xs);
+    }
+    .btn-print:active { background: var(--gray-1); }
+    .btn-new {
+      width: 100%; max-width: 460px;
+      padding: 14px var(--s-md);
+      background: var(--white);
+      color: var(--text);
+      font-family: var(--font-primary);
+      font-weight: 700;
+      font-size: var(--fs-b-md);
+      letter-spacing: var(--ls-wide);
+      border: var(--bw-sm) solid var(--p200);
+      border-radius: var(--r-full);
+      cursor: pointer;
+    }
+
+    /* ===== PRINT ===== */
+    #print-page { display: none; padding: 40px; font-family: var(--font-primary); }
+    @media print {
+      .app, .bottom-nav { display: none !important; }
+      #print-page { display: block !important; }
+    }
+    .print-ttl {
+      font-family: var(--font-primary); font-weight: 700;
+      font-size: 22px;
+      border-bottom: var(--bw-md) solid var(--p500);
+      padding-bottom: var(--s-sm); margin-bottom: var(--s-lg);
+      letter-spacing: var(--ls-wide);
+    }
+    .print-meta { display: flex; flex-wrap: wrap; gap: var(--s-lg); margin-bottom: var(--s-lg); font-size: var(--fs-b-md); }
+    .print-meta span { color: var(--text-sub); }
+    .print-items { columns: 2; gap: var(--s-xl); margin-bottom: var(--s-xl); }
+    .print-item { display: flex; align-items: flex-start; gap: var(--s-xs); margin-bottom: var(--s-xs); font-size: var(--fs-b-md); break-inside: avoid; }
+    .p-chk { color: var(--outdoor-green); font-weight: 700; flex-shrink: 0; }
+    .print-sign-area { border-top: var(--bw-sm) solid var(--p200); padding-top: var(--s-lg); display: flex; justify-content: space-between; align-items: flex-end; }
+    .print-sign-lbl { font-size: var(--fs-b-md); font-weight: 700; margin-bottom: var(--s-xs); }
+    .print-note { font-family: var(--font-accent); font-size: var(--fs-b-sm); color: var(--gray-2); text-align: right; letter-spacing: 0.18em; }
+  </style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- TOP BAR -->
+  <header class="top-bar">
+    <div class="brand">
+      <div class="brand-mark">F</div>
+      <div>
+        <div class="brand-name">FAMILY</div>
+        <div class="brand-sub">納車マネージャー</div>
+      </div>
+    </div>
+    <div class="top-right">
+      <button class="home-link" id="homeLink" onclick="backToHome()">
+        <span class="material-symbols-outlined" style="font-size:18px;">arrow_back</span>ホームへ
+      </button>
+      <div class="progress-pill" id="progressPill">
+        <span class="material-symbols-outlined">task_alt</span>
+        <span id="progressPillText">0 / 0</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- ============ HOME ============ -->
+    <div id="sc-home" class="screen active">
+
+      <!-- Hero -->
+      <div class="hero">
+        <div class="confetti-layer" id="confettiLayer"></div>
+        <div class="hero-eyebrow">
+          <span class="line"></span>
+          <span class="dot"></span>
+          <span class="label">FAMILY &nbsp; DELIVERY &nbsp; DAY</span>
+          <span class="dot"></span>
+          <span class="line"></span>
+        </div>
+        <h1 class="hero-h1">
+          ご納車、<span class="accent">おめでとうございます</span>
+        </h1>
+        <div class="hero-name-frame">
+          <div class="hero-name" id="heroName">
+            <span class="empty">お客様名をご入力ください</span>
+          </div>
+          <div class="hero-car" id="heroCar">
+            <span class="name-jp">— Your New Vehicle —</span>
+          </div>
+        </div>
+        <div class="hero-foot">
+          <span class="line"></span>
+          <span>EST. 1980 &nbsp; · &nbsp; FAMILY CO.</span>
+          <span class="line"></span>
+        </div>
+      </div>
+
+      <!-- Form + Section grid -->
+      <div class="home-grid">
+
+        <!-- LEFT: Form + Drink -->
+        <div class="form-card">
+          <div class="card-head">
+            <div class="card-title">本日のご案内情報</div>
+            <div class="card-title-en">Today's Info</div>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-cell">
+              <label class="form-lbl"><span class="en">Customer</span>お客様名</label>
+              <input id="customerName" type="text" class="form-inp" placeholder="例：田中 花子" oninput="syncHero()">
+            </div>
+            <div class="form-cell">
+              <label class="form-lbl"><span class="en">Vehicle</span>車両名</label>
+              <input id="carName" type="text" class="form-inp" placeholder="例：N-BOX カスタム ターボ" oninput="syncHero()">
+            </div>
+            <div class="form-cell">
+              <label class="form-lbl"><span class="en">Staff</span>担当者</label>
+              <input id="staffName" type="text" class="form-inp" placeholder="例：山田 太郎">
+            </div>
+            <div class="form-cell">
+              <label class="form-lbl"><span class="en">Plate</span>ナンバー</label>
+              <input id="carNumber" type="text" class="form-inp" placeholder="岐阜 500 あ 12-34">
+            </div>
+            <div class="form-cell full">
+              <label class="form-lbl"><span class="en">FM No.</span>印刷連番</label>
+              <input id="fmSeq" type="text" class="form-inp" placeholder="A-12345">
+            </div>
+          </div>
+
+          <div class="drink-bar">
+            <div class="drink-head">
+              <div class="drink-title">
+                <span class="material-symbols-outlined">local_cafe</span>
+                ドリンクのご案内
+              </div>
+              <div class="drink-title-en">Welcome Drink</div>
+            </div>
+            <div class="drink-options" id="drinkOptions">
+              <button class="drink-btn" data-d="コーヒー"><span class="material-symbols-outlined">local_cafe</span>コーヒー</button>
+              <button class="drink-btn" data-d="お茶"><span class="material-symbols-outlined">emoji_food_beverage</span>お茶</button>
+              <button class="drink-btn" data-d="紅茶"><span class="material-symbols-outlined">coffee</span>紅茶</button>
+              <button class="drink-btn" data-d="水"><span class="material-symbols-outlined">water_drop</span>水</button>
+              <button class="drink-btn" data-d="ジュース"><span class="material-symbols-outlined">local_drink</span>ジュース</button>
+              <button class="drink-btn" data-d="不要"><span class="material-symbols-outlined">block</span>不要</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Section cards -->
+        <div class="section-col">
+          <!-- Indoor -->
+          <div class="section-card indoor" id="cardIndoor" onclick="enterSection('indoor')">
+            <div class="sc-head">
+              <div class="sc-titlewrap">
+                <div class="sc-eyebrow">Section &nbsp;01</div>
+                <div class="sc-title">店内でのご案内</div>
+                <div class="sc-title-en">In-Store Guidance</div>
+              </div>
+              <div class="sc-icon">
+                <span class="material-symbols-outlined">meeting_room</span>
+              </div>
+            </div>
+            <div class="sc-status" id="statusIndoor">
+              <span class="dot"></span><span id="statusIndoorTxt">未開始</span>
+            </div>
+            <div class="sc-meta">
+              <div class="sc-meta-cell">
+                <div class="sc-meta-lbl">Items</div>
+                <div class="sc-meta-val"><span id="indoorTotalA">—</span><small>項目</small></div>
+              </div>
+              <div class="sc-meta-cell">
+                <div class="sc-meta-lbl">Required</div>
+                <div class="sc-meta-val">4<small>必須</small></div>
+              </div>
+            </div>
+            <div class="sc-prog">
+              <div class="sc-prog-bar"><div class="sc-prog-fill" id="indoorFill"></div></div>
+              <div class="sc-prog-num"><span id="indoorDone">0</span><small> / <span id="indoorTotalB">0</span></small></div>
+            </div>
+            <div class="sc-cta">
+              <span class="sc-cta-text" id="indoorCtaTxt">店内のご案内を始める</span>
+              <div class="sc-cta-arrow"><span class="material-symbols-outlined">arrow_forward</span></div>
+            </div>
+          </div>
+
+          <!-- Outdoor -->
+          <div class="section-card outdoor" id="cardOutdoor" onclick="enterSection('outdoor')">
+            <div class="sc-head">
+              <div class="sc-titlewrap">
+                <div class="sc-eyebrow">Section &nbsp;02</div>
+                <div class="sc-title">お車で一緒に確認</div>
+                <div class="sc-title-en">Walk-around with Customer</div>
+              </div>
+              <div class="sc-icon">
+                <span class="material-symbols-outlined">directions_car</span>
+              </div>
+            </div>
+            <div class="sc-status" id="statusOutdoor">
+              <span class="dot"></span><span id="statusOutdoorTxt">未開始</span>
+            </div>
+            <div class="sc-meta">
+              <div class="sc-meta-cell">
+                <div class="sc-meta-lbl">Items</div>
+                <div class="sc-meta-val"><span id="outdoorTotalA">—</span><small>項目</small></div>
+              </div>
+              <div class="sc-meta-cell">
+                <div class="sc-meta-lbl">Main</div>
+                <div class="sc-meta-val">指示書<small>と照合</small></div>
+              </div>
+            </div>
+            <div class="sc-prog">
+              <div class="sc-prog-bar"><div class="sc-prog-fill" id="outdoorFill"></div></div>
+              <div class="sc-prog-num"><span id="outdoorDone">0</span><small> / <span id="outdoorTotalB">0</span></small></div>
+            </div>
+            <div class="sc-cta">
+              <span class="sc-cta-text" id="outdoorCtaTxt">お車での確認を始める</span>
+              <div class="sc-cta-arrow"><span class="material-symbols-outlined">arrow_forward</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /home-grid -->
+
+      <div class="complete-banner" id="completeBanner">
+        <span class="material-symbols-outlined">auto_awesome</span>
+        <div class="complete-banner-text">全てのご案内が完了しました。お客様サインへお進みください。</div>
+      </div>
+    </div>
+
+    <!-- ============ SECTION DETAIL ============ -->
+    <div id="sc-section" class="screen">
+      <div class="sec-detail-head">
+        <div class="sec-detail-icon"><span class="material-symbols-outlined" id="secIcon">meeting_room</span></div>
+        <div class="sec-detail-meta">
+          <div class="sec-detail-eyebrow" id="secEyebrow">SECTION 01</div>
+          <div class="sec-detail-title" id="secTitle">店内でのご案内</div>
+        </div>
+        <div class="sec-detail-counter" id="secCounter">0 / 0</div>
+      </div>
+      <div id="secList"></div>
+    </div>
+
+    <!-- ============ SIGN ============ -->
+    <div id="sc-sign" class="screen">
+      <div class="sign-summary">
+        <div class="sign-summary-ttl">本日ご説明した項目</div>
+        <div class="sign-grid" id="signGrid"></div>
+      </div>
+      <div class="sign-canvas-card">
+        <div class="sign-ttl">お客様サイン欄</div>
+        <div class="sign-sub">全ての説明が完了しました。枠内にサインをお願いいたします。</div>
+        <canvas id="signCanvas"></canvas>
+        <button class="clear-btn" onclick="clearSign()">サインをクリアする</button>
+      </div>
+    </div>
+
+    <!-- ============ COMPLETE ============ -->
+    <div id="sc-complete" class="screen">
+      <div class="complete-wrap">
+        <div class="complete-eyebrow">Thank you for your trust</div>
+        <h2 class="complete-h">納車説明が完了しました</h2>
+        <p class="complete-sub" id="completeSub">お疲れ様でした</p>
+        <div class="stats-card">
+          <div><span class="stat-val" id="stItems">—</span><span class="stat-lbl">Items</span></div>
+          <div><span class="stat-val" id="stClock">—</span><span class="stat-lbl">Finished</span></div>
+        </div>
+        <button class="btn-print" onclick="doPrint()">
+          <span class="material-symbols-outlined" style="font-size:20px;">print</span>
+          済み証を印刷する
+        </button>
+        <button class="btn-new" onclick="resetAll()">新しい納車を開始する</button>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav" id="bottomNav">
+    <button class="btn-back" id="btnBack" onclick="goBack()" style="display:none;">
+      <span class="material-symbols-outlined" style="font-size:20px;">arrow_back</span>戻る
+    </button>
+    <button class="btn-fwd" id="btnFwd" onclick="goFwd()" disabled>
+      お客様情報をご入力ください
+    </button>
+  </div>
+</div>
+
+<!-- Print -->
+<div id="print-page">
+  <div class="print-ttl">納車説明　済み証</div>
+  <div class="print-meta">
+    <div><span>担当者：</span><strong id="pStaff">—</strong></div>
+    <div><span>お客様：</span><strong id="pCustomer">—</strong></div>
+    <div><span>車両：</span><strong id="pCar">—</strong></div>
+    <div><span>ナンバー：</span><strong id="pNumber">—</strong></div>
+    <div><span>FM連番：</span><strong id="pSeq">—</strong></div>
+    <div><span>日時：</span><strong id="pDate">—</strong></div>
+  </div>
+  <div class="print-items" id="pItems"></div>
+  <div class="print-sign-area">
+    <div>
+      <div class="print-sign-lbl">お客様サイン</div>
+      <img id="pSign" style="height:80px;width:280px;border-bottom:1.5px solid #E57138;display:block;object-fit:contain;">
+    </div>
+    <div class="print-note">FAMILY DELIVERY MANAGER<br>担当：<span id="pStaff2">—</span></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   ITEMS DEFINITION
+   ============================================================ */
+const INDOOR_ITEMS = [
+  {id:'i1', n:'保険（任意保険）',           must:true,  emoji:'🛡️',
+   d:'iPad上で任意保険の契約手続きを完結します。FM印刷連番に紐づくデータを引き当て、証券番号・保険会社・補償内容をお客様と一緒に確認します。',
+   extra:[{type:'memo', label:'特記事項'}]},
+  {id:'i2', n:'下取り',                     must:true,  emoji:'🚙',
+   d:'下取り車両の書類（車検証・リサイクル券等）が揃っていることと、車内に忘れ物がないことをお客様と一緒に確認します。',
+   extra:[{type:'memo', label:'メモ'}]},
+  {id:'i3', n:'ローン',                     must:true,  emoji:'📝',
+   d:'ローン関連書類の記入漏れがないか、お客様と一緒に最終確認します。',
+   extra:[{type:'memo', label:'メモ'}]},
+  {id:'i4', n:'書類一式',                   must:true,  emoji:'📋',
+   d:'納車書類（保証書・取扱説明書・車検証ケース等）の内容について、お客様と一緒に確認します。',
+   extra:[{type:'memo', label:'メモ'}]},
+  {id:'i5', n:'アプリ登録 ＋ 会員制度の説明', must:false, emoji:'📱',
+   d:'弊社アプリのダウンロード・ログイン登録をサポートし、同じ画面で会員制度（ポイント・特典）の内容をご案内します。',
+   extra:[{type:'memo', label:'登録完了ID等'}]},
+  {id:'i6', n:'1V予約',                     must:false, emoji:'📅',
+   d:'1V予約のご案内・登録を行います。',
+   extra:[{type:'memo', label:'メモ'}]},
+  {id:'i7', n:'納車式（記念写真）',          must:false, emoji:'📸',
+   d:'記念写真を撮影し、お客様にiPadから直接送信します。SNS掲載の可否も確認します。',
+   extra:[{type:'photo'}]},
+  {id:'i8', n:'連絡がつきやすい日時',       must:false, emoji:'📞',
+   d:'アフターフォローのため、ご連絡しやすい曜日と時間帯をお伺いします。回答内容はFCSへ自動連携されます。',
+   extra:[{type:'contact'}]},
+];
+const OUTDOOR_ITEMS = [
+  {id:'o1',  n:'現車確認',                  emoji:'🔍',
+   d:'お客様と一緒に車両を一周し、傷・へこみがないか、車内に忘れ物がないかを確認します。',
+   extra:[{type:'memo', label:'メモ（気になった箇所）'}]},
+  {id:'o2',  n:'ナンバー・車台番号の確認',   emoji:'🪪',
+   d:'車検証の内容とナンバープレート・車台ナンバーが一致しているかを確認します。',
+   extra:[{type:'memo', label:'メモ'}]},
+  {id:'o3',  n:'ガソリン給油口（種類）',     emoji:'⛽',
+   d:'給油口の位置とガソリンの種類（レギュラー／ハイオク／軽油）をお伝えします。',
+   extra:[{type:'memo', label:'メモ'}]},
+  {id:'o4',  n:'パンクキット・ジャッキ系',   emoji:'🛠️',
+   d:'パンク修理キット・ジャッキ・車載工具の収納場所と基本的な使用方法をご説明します。',
+   extra:[]},
+  {id:'o5',  n:'車の特徴',                  emoji:'✨',
+   d:'車種固有の特徴・売りポイントをご説明します（電動シート・パノラマルーフ・e-POWER等）。',
+   extra:[{type:'memo', label:'メモ'}]},
+  {id:'o6',  n:'スペアキー',                emoji:'🗝️',
+   d:'スペアキーをお渡しし、保管場所についてご案内します。', extra:[]},
+  {id:'o7',  n:'キーナンバー',              emoji:'🔢',
+   d:'キーナンバーの確認方法と保管場所についてご説明します。', extra:[]},
+  {id:'o8',  n:'鍵の開け閉め',              emoji:'🔓',
+   d:'スマートキーの操作方法（開ける・閉める）をご説明します。', extra:[]},
+  {id:'o9',  n:'電池切れた際の対応',        emoji:'🔋',
+   d:'スマートキーの電池切れ時の手動操作方法をご説明します。', extra:[]},
+  {id:'o10', n:'セキュリティアラーム',      emoji:'🚨',
+   d:'セキュリティアラームの動作・解除方法をご説明します。', extra:[]},
+  {id:'o11', n:'給油口開閉レバー',          emoji:'🕹️',
+   d:'室内の給油口開閉レバーの位置と操作方法をご説明します。', extra:[]},
+  {id:'o12', n:'サイドミラー',              emoji:'🪞',
+   d:'サイドミラーの調整方法・格納操作をご説明します。', extra:[]},
+  {id:'o13', n:'自動ブレーキ系ボタン',      emoji:'🛑',
+   d:'衝突被害軽減ブレーキのON/OFF操作と機能概要をご説明します。', extra:[]},
+  {id:'o14', n:'ライト・ウインカー系',      emoji:'💡',
+   d:'ヘッドライト（オート含む）・ウインカーの操作をご説明します。', extra:[]},
+  {id:'o15', n:'ステアリングリモコン',      emoji:'🎚️',
+   d:'ハンドルのリモコンボタン（オーディオ・電話等）の操作方法をご説明します。', extra:[]},
+  {id:'o16', n:'オプション内容の確認',       emoji:'🎁',
+   d:'指示書を参照しながら、取り付けたオプションが全て装着されているかをお客様と一緒に確認します。本日のメインチェック対象です。',
+   extra:[{type:'options'}]},
+  {id:'o17', n:'ナビの操作説明',            emoji:'🗺️',
+   d:'ナビゲーションの基本操作・音量調整・地図更新方法をご説明します。', extra:[]},
+  {id:'o18', n:'ドラレコの操作説明',        emoji:'📹',
+   d:'ドライブレコーダーの操作方法・録画確認方法をご説明します。', extra:[]},
+  {id:'o19', n:'その他質問',                emoji:'💬',
+   d:'お客様から追加のご質問があれば対応します。',
+   extra:[{type:'memo', label:'質問内容と回答'}]},
+];
+const OPTION_MASTER = [
+  'フロアマット', 'ドアバイザー', 'ナンバーフレーム',
+  'ETC車載器', 'ドライブレコーダー', 'コーティング',
+  'バックカメラ', '社外ナビ',
+];
+
+/* ============================================================
+   STATE
+   ============================================================ */
+let phase = 'home';
+let currentSection = null;
+let sess = { staff:'', customer:'', car:'', number:'', seq:'', drink:'', items:{}, signData:null };
+
+function initItems() {
+  sess.items = {};
+  [...INDOOR_ITEMS, ...OUTDOOR_ITEMS].forEach(it=>{
+    sess.items[it.id] = { checked:false, memo:'', contactDay:'', contactTime:'', photoSent:false, photoCount:0, options:new Set() };
+  });
+}
+initItems();
+const totalItems = ()=> INDOOR_ITEMS.length + OUTDOOR_ITEMS.length;
+const doneItems  = ()=> Object.values(sess.items).filter(s=>s.checked).length;
+const doneIn = items => items.filter(it=>sess.items[it.id].checked).length;
+
+/* HERO live sync */
+function syncHero() {
+  const cu = document.getElementById('customerName').value.trim();
+  const ca = document.getElementById('carName').value.trim();
+  const hn = document.getElementById('heroName');
+  const hc = document.getElementById('heroCar');
+  hn.innerHTML = cu
+    ? `${escapeHtml(cu)}<span class="sama">様</span>`
+    : `<span class="empty">お客様名をご入力ください</span>`;
+  hc.innerHTML = ca
+    ? `<span class="name-jp">${escapeHtml(ca)}</span>`
+    : `<span class="name-jp">— Your New Vehicle —</span>`;
+  syncNav();
+}
+function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));}
+
+/* CONFETTI */
+function spawnConfetti(n=20) {
+  const layer = document.getElementById('confettiLayer');
+  if (!layer) return;
+  layer.innerHTML = '';
+  const colors = ['var(--p500)', 'var(--p400)', 'var(--p300)', 'var(--p200)'];
+  for (let i=0;i<n;i++) {
+    const el = document.createElement('div');
+    el.className='confetti';
+    el.style.left = `${Math.random()*100}%`;
+    el.style.background = colors[Math.floor(Math.random()*colors.length)];
+    el.style.animationDelay = `${Math.random()*0.6}s`;
+    el.style.animationDuration = `${4 + Math.random()*2.5}s`;
+    el.style.transform = `rotate(${Math.random()*360}deg)`;
+    el.style.width = `${6 + Math.random()*4}px`;
+    el.style.height = `${10 + Math.random()*6}px`;
+    layer.appendChild(el);
+  }
+}
+
+/* SCREEN */
+function show(id, cls='') {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active','is-indoor','is-outdoor'));
+  const el = document.getElementById(id);
+  el.classList.add('active');
+  if (cls) el.classList.add(cls);
+  window.scrollTo({top:0});
+}
+
+function syncNav() {
+  const back = document.getElementById('btnBack');
+  const fwd  = document.getElementById('btnFwd');
+  const pill = document.getElementById('progressPill');
+  const home = document.getElementById('homeLink');
+  const nav  = document.getElementById('bottomNav');
+
+  home.classList.toggle('show', phase==='section');
+  pill.classList.remove('show');
+
+  if (phase==='home') {
+    back.style.display='none';
+    pill.classList.add('show');
+    document.getElementById('progressPillText').textContent = `${doneItems()} / ${totalItems()}`;
+    const cuOk = !!document.getElementById('customerName').value.trim();
+    const caOk = !!document.getElementById('carName').value.trim();
+    const inputsOk = cuOk && caOk;
+    const allDone = doneItems() === totalItems();
+    if (!inputsOk) {
+      fwd.disabled=true;
+      fwd.innerHTML='お客様名と車両名をご入力ください';
+    } else if (allDone) {
+      fwd.disabled=false;
+      fwd.innerHTML='お客様サインへ進む <span class="material-symbols-outlined" style="font-size:20px;">edit</span>';
+    } else {
+      fwd.disabled=true;
+      fwd.innerHTML='カードを選択して、ご案内を始めてください';
+    }
+    nav.style.display='flex';
+    document.getElementById('completeBanner').classList.toggle('show', allDone && inputsOk);
+  } else if (phase==='section') {
+    back.style.display='flex';
+    pill.classList.add('show');
+    document.getElementById('progressPillText').textContent = `${doneItems()} / ${totalItems()}`;
+    const items = currentSection==='indoor' ? INDOOR_ITEMS : OUTDOOR_ITEMS;
+    const secDone = doneIn(items) === items.length;
+    if (secDone) {
+      fwd.disabled=false;
+      fwd.innerHTML='ホームへ戻る <span class="material-symbols-outlined" style="font-size:20px;">home</span>';
+    } else {
+      fwd.disabled=true;
+      fwd.innerHTML=`あと ${items.length - doneIn(items)} 項目`;
+    }
+    nav.style.display='flex';
+  } else if (phase==='sign') {
+    back.style.display='flex';
+    fwd.disabled=false;
+    fwd.innerHTML='完了・記録する <span class="material-symbols-outlined" style="font-size:20px;">check</span>';
+    nav.style.display='flex';
+  } else {
+    nav.style.display='none';
+  }
+}
+
+/* DRINK */
+document.getElementById('drinkOptions').addEventListener('click', e=>{
+  const b = e.target.closest('.drink-btn'); if(!b) return;
+  document.querySelectorAll('#drinkOptions .drink-btn').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); sess.drink = b.dataset.d;
+});
+
+/* HOME render */
+function renderHome() {
+  document.getElementById('indoorTotalA').textContent  = INDOOR_ITEMS.length;
+  document.getElementById('indoorTotalB').textContent  = INDOOR_ITEMS.length;
+  document.getElementById('outdoorTotalA').textContent = OUTDOOR_ITEMS.length;
+  document.getElementById('outdoorTotalB').textContent = OUTDOOR_ITEMS.length;
+  const inDone = doneIn(INDOOR_ITEMS);
+  const outDone = doneIn(OUTDOOR_ITEMS);
+  document.getElementById('indoorDone').textContent  = inDone;
+  document.getElementById('outdoorDone').textContent = outDone;
+  document.getElementById('indoorFill').style.width  = `${(inDone/INDOOR_ITEMS.length)*100}%`;
+  document.getElementById('outdoorFill').style.width = `${(outDone/OUTDOOR_ITEMS.length)*100}%`;
+  updateBadge('indoor',  inDone,  INDOOR_ITEMS.length);
+  updateBadge('outdoor', outDone, OUTDOOR_ITEMS.length);
+}
+function updateBadge(key, done, total) {
+  const cap = key[0].toUpperCase() + key.slice(1);
+  const card = document.getElementById('card'+cap);
+  const txt  = document.getElementById('status'+cap+'Txt');
+  const cta  = document.getElementById(key+'CtaTxt');
+  card.classList.remove('progress','done');
+  if (done===0) {
+    txt.textContent='未開始';
+    cta.textContent = key==='indoor' ? '店内のご案内を始める' : 'お車での確認を始める';
+  } else if (done<total) {
+    card.classList.add('progress');
+    txt.textContent = `進行中　${done}/${total}`;
+    cta.textContent = '続きから再開する';
+  } else {
+    card.classList.add('done');
+    txt.textContent = '完了';
+    cta.textContent = 'もう一度ひらく';
+  }
+}
+
+function enterSection(key) {
+  const cuOk = !!document.getElementById('customerName').value.trim();
+  const caOk = !!document.getElementById('carName').value.trim();
+  if (!cuOk || !caOk) {
+    alert('お客様名と車両名をご入力ください');
+    document.getElementById(cuOk ? 'carName' : 'customerName').focus();
+    return;
+  }
+  currentSection = key;
+  sess.staff    = document.getElementById('staffName').value.trim()    || sess.staff;
+  sess.customer = document.getElementById('customerName').value.trim() || sess.customer;
+  sess.car      = document.getElementById('carName').value.trim()      || sess.car;
+  sess.number   = document.getElementById('carNumber').value.trim()    || sess.number;
+  sess.seq      = document.getElementById('fmSeq').value.trim()        || sess.seq;
+
+  const items = key==='indoor' ? INDOOR_ITEMS : OUTDOOR_ITEMS;
+  document.getElementById('secEyebrow').textContent = key==='indoor' ? 'SECTION 01' : 'SECTION 02';
+  document.getElementById('secTitle').textContent   = key==='indoor' ? '店内でのご案内' : 'お車で一緒に確認';
+  document.getElementById('secIcon').textContent    = key==='indoor' ? 'meeting_room' : 'directions_car';
+  buildAccordion(items, document.getElementById('secList'));
+  updateCounter();
+  phase='section';
+  show('sc-section', key==='indoor' ? 'is-indoor' : 'is-outdoor');
+  syncNav();
+}
+function backToHome(){ phase='home'; renderHome(); show('sc-home'); syncNav(); }
+function updateCounter() {
+  const items = currentSection==='indoor' ? INDOOR_ITEMS : OUTDOOR_ITEMS;
+  document.getElementById('secCounter').textContent = `${doneIn(items)} / ${items.length}`;
+}
+
+/* ACCORDION */
+function buildAccordion(items, container) {
+  container.innerHTML='';
+  items.forEach((it, idx)=>{
+    const state = sess.items[it.id];
+    const wrap = document.createElement('div');
+    wrap.className = 'acc-item' + (state.checked ? ' checked' : '');
+
+    const head = document.createElement('div');
+    head.className='acc-head';
+    head.innerHTML = `
+      <div class="acc-num"><span>${String(idx+1).padStart(2,'0')}</span>
+        <span class="material-symbols-outlined">check</span></div>
+      <div class="acc-title">${it.n}</div>
+      ${it.must ? '<span class="acc-badge">必須 / REQ</span>' : ''}
+      <div class="acc-toggle"><span class="material-symbols-outlined">expand_more</span></div>
+    `;
+    head.onclick = ()=> wrap.classList.toggle('open');
+    wrap.appendChild(head);
+
+    const body = document.createElement('div');
+    body.className='acc-body';
+    const inner = document.createElement('div');
+    inner.className='acc-body-inner';
+
+    const visual = document.createElement('div');
+    visual.className='visual-area';
+    visual.innerHTML = `
+      <div class="visual-stage">
+        <span class="visual-tag"><span class="material-symbols-outlined">photo_library</span>Photo / Video</span>
+        <span class="visual-emoji">${it.emoji||'📷'}</span>
+      </div>
+      <div class="visual-tabs">
+        <button class="visual-tab on" data-v="photo"><span class="material-symbols-outlined">photo</span>写真</button>
+        <button class="visual-tab" data-v="video"><span class="material-symbols-outlined">play_circle</span>動画</button>
+        <button class="visual-tab" data-v="ill"><span class="material-symbols-outlined">image</span>図解</button>
+      </div>
+    `;
+    visual.addEventListener('click', e=>{
+      const t = e.target.closest('.visual-tab'); if(!t) return;
+      visual.querySelectorAll('.visual-tab').forEach(b=>b.classList.remove('on'));
+      t.classList.add('on');
+    });
+    inner.appendChild(visual);
+
+    const info = document.createElement('div'); info.className='info-area';
+    const desc = document.createElement('div'); desc.className='acc-desc'; desc.textContent=it.d;
+    info.appendChild(desc);
+    (it.extra||[]).forEach(ex=> info.appendChild(buildExtra(it, ex, state)));
+
+    const cb = document.createElement('button');
+    cb.className='check-btn' + (state.checked ? ' on' : '');
+    cb.innerHTML = state.checked
+      ? '<span class="material-symbols-outlined">check_circle</span>ご説明済み（解除する）'
+      : '<span class="material-symbols-outlined">check</span>ご説明済みにする';
+    cb.onclick = ()=>{
+      state.checked = !state.checked;
+      const items = currentSection==='indoor' ? INDOOR_ITEMS : OUTDOOR_ITEMS;
+      buildAccordion(items, document.getElementById('secList'));
+      updateCounter(); syncNav();
+    };
+    info.appendChild(cb);
+
+    inner.appendChild(info);
+    body.appendChild(inner);
+    wrap.appendChild(body);
+    container.appendChild(wrap);
+  });
+}
+
+function buildExtra(it, ex, state) {
+  const div = document.createElement('div');
+  div.className='acc-extra';
+  if (ex.type==='memo') {
+    div.innerHTML = `<label class="acc-extra-lbl"><span class="en">Memo</span>${ex.label||'メモ'}</label>`;
+    const ta = document.createElement('textarea');
+    ta.placeholder='入力内容は自動で保存されます';
+    ta.value = state.memo;
+    ta.oninput = e=> state.memo = e.target.value;
+    div.appendChild(ta);
+  } else if (ex.type==='contact') {
+    div.innerHTML = `<label class="acc-extra-lbl"><span class="en">Contact</span>連絡希望（FCS連携）</label>`;
+    const row = document.createElement('div'); row.className='row-2';
+    const day = document.createElement('select');
+    ['','月曜','火曜','木曜','金曜','土曜','日曜','平日','土日','いつでも'].forEach(v=>{
+      const o = document.createElement('option'); o.value=v; o.textContent= v||'曜日を選択'; day.appendChild(o);
+    });
+    day.value = state.contactDay; day.onchange = e=> state.contactDay = e.target.value;
+    const time = document.createElement('select');
+    ['','午前（9-12時）','昼（12-14時）','午後（14-17時）','夕方（17-19時）','夜（19-21時）','いつでも'].forEach(v=>{
+      const o = document.createElement('option'); o.value=v; o.textContent= v||'時間帯を選択'; time.appendChild(o);
+    });
+    time.value = state.contactTime; time.onchange = e=> state.contactTime = e.target.value;
+    row.appendChild(day); row.appendChild(time); div.appendChild(row);
+  } else if (ex.type==='photo') {
+    const a = document.createElement('div'); a.className='photo-area';
+    a.innerHTML = `
+      <label class="acc-extra-lbl"><span class="en">Photo</span>納車式の記念写真</label>
+      <div class="photo-row">${state.photoCount===0 ? '<div class="photo-thumb">📷</div>' : ''}</div>
+      <div class="photo-actions">
+        <button class="photo-btn" data-act="shoot"><span class="material-symbols-outlined">photo_camera</span>撮影する</button>
+        <button class="photo-btn primary" data-act="send"><span class="material-symbols-outlined">send</span>お客様に送信</button>
+      </div>
+      <div class="send-status${state.photoSent?' show':''}"><span class="material-symbols-outlined">check_circle</span>送信済み</div>
+    `;
+    a.addEventListener('click', e=>{
+      const b = e.target.closest('.photo-btn'); if(!b) return;
+      if (b.dataset.act==='shoot') {
+        state.photoCount++;
+        const row = a.querySelector('.photo-row');
+        const t = document.createElement('div'); t.className='photo-thumb'; t.textContent='📷';
+        row.appendChild(t);
+        if (state.photoCount===1) row.querySelector('.photo-thumb:first-child')?.remove();
+      } else {
+        if (state.photoCount===0) { alert('まず写真を撮影してください'); return; }
+        state.photoSent = true;
+        a.querySelector('.send-status').classList.add('show');
+      }
+    });
+    div.appendChild(a);
+  } else if (ex.type==='options') {
+    div.innerHTML = `<label class="acc-extra-lbl"><span class="en">Options</span>装着オプション（指示書と照合）</label>`;
+    const list = document.createElement('div'); list.className='opt-list';
+    OPTION_MASTER.forEach(opt=>{
+      const row = document.createElement('div');
+      row.className = 'opt-row' + (state.options.has(opt) ? ' on' : '');
+      row.innerHTML = `<div class="opt-box"><span class="material-symbols-outlined">check</span></div><div class="opt-lbl">${opt}</div>`;
+      row.onclick = ()=>{
+        if (state.options.has(opt)) state.options.delete(opt); else state.options.add(opt);
+        row.classList.toggle('on');
+      };
+      list.appendChild(row);
+    });
+    div.appendChild(list);
+  }
+  return div;
+}
+
+/* NAV */
+function goFwd() {
+  if (phase==='home') {
+    sess.staff    = document.getElementById('staffName').value.trim();
+    sess.customer = document.getElementById('customerName').value.trim();
+    sess.car      = document.getElementById('carName').value.trim();
+    sess.number   = document.getElementById('carNumber').value.trim();
+    sess.seq      = document.getElementById('fmSeq').value.trim();
+    phase='sign'; buildSignGrid(); initCanvas(); show('sc-sign'); syncNav();
+  } else if (phase==='section') {
+    backToHome();
+  } else if (phase==='sign') {
+    doComplete();
+  }
+}
+function goBack() {
+  if (phase==='section') backToHome();
+  else if (phase==='sign') { phase='home'; renderHome(); show('sc-home'); syncNav(); }
+}
+
+/* SIGN */
+function buildSignGrid() {
+  const g = document.getElementById('signGrid'); g.innerHTML='';
+  [...INDOOR_ITEMS, ...OUTDOOR_ITEMS].forEach(it=>{
+    if (sess.items[it.id].checked) {
+      const d = document.createElement('div'); d.className='sign-item';
+      d.innerHTML = `<span class="chk">✓</span>${it.n}`;
+      g.appendChild(d);
+    }
+  });
+}
+let drawing=false, lx=0, ly=0;
+function initCanvas() {
+  const cv = document.getElementById('signCanvas');
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio||1;
+  cv.width = r.width*dpr; cv.height = r.height*dpr;
+  const ctx = cv.getContext('2d'); ctx.scale(dpr,dpr);
+  ctx.strokeStyle='#000'; ctx.lineWidth=2.5; ctx.lineCap='round'; ctx.lineJoin='round';
+  const pos = e => { const r=cv.getBoundingClientRect(), s=e.touches?e.touches[0]:e; return [s.clientX-r.left, s.clientY-r.top]; };
+  cv.addEventListener('touchstart', e=>{e.preventDefault();drawing=true;[lx,ly]=pos(e);cv.classList.add('signed');},{passive:false});
+  cv.addEventListener('touchmove',  e=>{e.preventDefault();if(!drawing)return;const[x,y]=pos(e);ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(x,y);ctx.stroke();[lx,ly]=[x,y];},{passive:false});
+  cv.addEventListener('touchend',   ()=>{drawing=false;});
+  cv.addEventListener('mousedown',  e=>{drawing=true;[lx,ly]=pos(e);cv.classList.add('signed');});
+  cv.addEventListener('mousemove',  e=>{if(!drawing)return;const[x,y]=pos(e);ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(x,y);ctx.stroke();[lx,ly]=[x,y];});
+  cv.addEventListener('mouseup',    ()=>{drawing=false;});
+  cv.addEventListener('mouseleave', ()=>{drawing=false;});
+}
+function clearSign(){
+  const cv = document.getElementById('signCanvas');
+  cv.getContext('2d').clearRect(0,0,cv.width,cv.height);
+  cv.classList.remove('signed');
+}
+
+/* COMPLETE */
+function doComplete() {
+  sess.signData = document.getElementById('signCanvas').toDataURL('image/png');
+  const now = new Date();
+  document.getElementById('stItems').textContent = doneItems();
+  document.getElementById('stClock').textContent = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+  document.getElementById('completeSub').textContent = `${sess.customer || 'お客様'}、ありがとうございました`;
+  phase='complete'; show('sc-complete'); syncNav();
+  spawnConfetti(35);
+}
+
+function doPrint() {
+  const now = new Date();
+  const d = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+  document.getElementById('pStaff').textContent    = sess.staff;
+  document.getElementById('pStaff2').textContent   = sess.staff;
+  document.getElementById('pCustomer').textContent = sess.customer;
+  document.getElementById('pCar').textContent      = sess.car;
+  document.getElementById('pNumber').textContent   = sess.number;
+  document.getElementById('pSeq').textContent      = sess.seq;
+  document.getElementById('pDate').textContent     = d;
+  document.getElementById('pSign').src             = sess.signData;
+  const el = document.getElementById('pItems'); el.innerHTML='';
+  [...INDOOR_ITEMS, ...OUTDOOR_ITEMS].forEach(it=>{
+    if (!sess.items[it.id].checked) return;
+    const div = document.createElement('div'); div.className='print-item';
+    div.innerHTML = `<span class="p-chk">✓</span>${it.n}`;
+    el.appendChild(div);
+  });
+  window.print();
+}
+
+function resetAll() {
+  phase='home';
+  ['staffName','customerName','carName','carNumber','fmSeq'].forEach(id=>document.getElementById(id).value='');
+  document.querySelectorAll('#drinkOptions .drink-btn').forEach(b=>b.classList.remove('on'));
+  sess.drink=''; initItems(); syncHero(); renderHome(); show('sc-home'); syncNav();
+  spawnConfetti(20);
+}
+
+/* INIT */
+renderHome();
+syncNav();
+spawnConfetti(20);
+</script>
+</body>
+</html>
