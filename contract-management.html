@@ -1,0 +1,1994 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>契約手続きツール 動くモック（操作イメージ確認用）</title>
+<!--
+  契約手続きツール 動くモック（操作イメージ確認用）
+  ・データは全て架空のダミー（実在の氏名・電話・住所・車両番号・店舗名は含みません）
+  ・外部通信なし／入力値は保存しません（画面を読み込み直すと消えます）
+  ・差し替えやすい場所（JS の先頭）：MASTER（店舗・担当者・販売区分）／TERMS（約款）／DOC_RULES（必要書類の出し分け）／FLAG_RULES（営業マン確認要フラグ）
+-->
+<style>
+/* ==========================================================
+   1. デザイントークン（02 gas/styles.html :root を継承・カンプと同一）
+   ========================================================== */
+:root {
+  --color-bg-page: #FAF8F5;                    /* Warm Ivory */
+  --color-text-main: #3E362E;                  /* Deep warm brown */
+  --color-text-muted: #8A7E73;                 /* Muted taupe */
+  --color-accent: #B88655;                     /* Copper：枠・アイコン・進捗 */
+  --color-cta: #E57138;                        /* Family Orange：主要CTA */
+  --color-cta-pressed: #D8621A;
+  --color-border: rgba(184, 134, 85, 0.15);
+  --color-placeholder: #F0EDE5;
+  --color-alert: #E83E25;                      /* 02のテストバッジ／エラートースト赤を流用 */
+  --color-sel-bg: #FFF6F1;                     /* 02の :has(input:checked) 背景 */
+
+  /* 02は 'Noto Sans JP'（Webフォント）を読み込むが、06は外部参照ゼロのため端末内蔵の日本語ゴシックへ落とす */
+  --font-stack: 'Noto Sans JP', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', Meiryo, sans-serif;
+  --font-heading-xl: 700 24px/1.35 var(--font-stack);
+  --font-heading-lg: 700 20px/1.4 var(--font-stack);
+  --font-body-md: 400 14.5px/1.7 var(--font-stack);
+
+  --spacing-md: 14px;
+  --spacing-lg: 20px;
+  --spacing-xl: 28px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-stack);
+  background: var(--color-bg-page);
+  color: var(--color-text-main);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;                 /* 02と同じ：iPad Chrome/Safari のタブバー分を除いた実可視領域 */
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ==========================================================
+   2. モック明示の帯（全画面で常時表示）＋ デモ操作
+   ========================================================== */
+.mock-banner {
+  position: relative;
+  flex-shrink: 0;
+  background: var(--color-alert);
+  color: #FFF;
+  font: 700 13px/1.4 var(--font-stack);
+  letter-spacing: .04em;
+  padding: 7px 96px 7px 12px;
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,.2);
+  z-index: 60;
+}
+/* デモ用操作：帯の右端に小さく格納（本体UIの邪魔をしない位置） */
+.demo-toggle {
+  position: absolute;
+  top: 4px; right: 8px;
+  background: rgba(255,255,255,.18);
+  border: 1px solid rgba(255,255,255,.55);
+  color: #FFF;
+  font: 500 11px/1 var(--font-stack);
+  letter-spacing: .04em;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+/* 見た目は小さいまま、タップできる範囲だけ44px高に広げる（上は画面の端で切れるので下へ広げる） */
+.demo-toggle::before { content: ''; position: absolute; inset: -4px -8px -18px -8px; }
+.demo-panel {
+  display: none;
+  position: absolute;
+  top: 34px; right: 8px;
+  width: min(420px, 92vw);
+  background: #FFF;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.18);
+  padding: 12px;
+  text-align: left;
+  z-index: 70;
+}
+.demo-panel.open { display: block; }
+.demo-panel h4 {
+  font: 700 12px/1.4 var(--font-stack);
+  color: var(--color-text-muted);
+  letter-spacing: .08em;
+  margin-bottom: 8px;
+}
+.demo-jump {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.demo-jump button, .demo-reset {
+  min-height: 44px;
+  border: 1px solid var(--color-border);
+  background: #FFF;
+  color: var(--color-text-main);
+  border-radius: 6px;
+  font: 400 12.5px/1.3 var(--font-stack);
+  cursor: pointer;
+  padding: 4px 6px;
+}
+.demo-jump button:hover, .demo-reset:hover { background: var(--color-sel-bg); border-color: var(--color-cta); }
+.demo-jump button[disabled] { opacity: .4; cursor: not-allowed; background: var(--color-placeholder); }
+.demo-jump button[disabled]:hover { background: var(--color-placeholder); border-color: var(--color-border); }
+.demo-note { font: 400 11.5px/1.5 var(--font-stack); color: var(--color-text-muted); margin-top: 8px; }
+.demo-reset { width: 100%; margin-top: 8px; }
+
+/* ==========================================================
+   3. ステータスバー（02 .status-bar / .status-step を継承）
+   ========================================================== */
+.status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-page);
+  flex-shrink: 0;
+  z-index: 15;
+}
+.status-steps { display: flex; align-items: center; width: 100%; max-width: 860px; }
+.status-step { display: flex; flex-direction: column; align-items: center; gap: 5px; flex-shrink: 0; }
+.step-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  border: 1.5px solid rgba(184,134,85,.25);
+  background: transparent;
+  transition: all .3s ease;
+}
+.step-label {
+  font: 400 10px/1.2 var(--font-stack);
+  letter-spacing: .02em;
+  color: var(--color-text-muted);
+  opacity: .45;
+  white-space: nowrap;
+}
+.step-line { flex: 1; height: 1px; background: var(--color-border); margin-bottom: 15px; }
+.status-step.active .step-dot { width: 10px; height: 10px; background: var(--color-accent); border-color: var(--color-accent); }
+.status-step.active .step-label { color: var(--color-accent); opacity: 1; font-weight: 500; }
+.status-step.completed .step-dot { background: var(--color-accent); border-color: var(--color-accent); opacity: .45; }
+.status-step.completed .step-label { color: var(--color-accent); opacity: .45; }
+
+/* ==========================================================
+   4. 画面スロット（カンプの .screen / .active）
+   ========================================================== */
+.app-main { flex: 1; position: relative; overflow: hidden; }
+.screen {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 24px 24px;
+  overflow-y: auto;                 /* 画面内スクロール（body全体はスクロールさせない） */
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+.screen.active { display: flex; }
+.screen-inner { width: 100%; max-width: 900px; display: flex; flex-direction: column; gap: 14px; }
+.screen-inner.wide { max-width: 1120px; }
+.screen-title { font: var(--font-heading-xl); letter-spacing: .05em; }
+.screen-lead {
+  font: var(--font-body-md);
+  color: var(--color-text-muted);
+  background: #FFF;
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-accent);
+  border-radius: 8px;
+  padding: 12px 16px;
+}
+.screen-sub { font: var(--font-body-md); color: var(--color-text-muted); }
+
+/* ==========================================================
+   5. フッターナビ（02 .app-footer / .btn-nav / .dot を継承）
+   ========================================================== */
+.app-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 20px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-page);
+  flex-shrink: 0;
+  z-index: 20;
+}
+.footer-left, .footer-right { width: 140px; }
+.footer-right { text-align: right; }
+.progress-indicator { display: flex; gap: 10px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(184,134,85,.15); transition: background-color .4s ease; }
+.dot.active { background: var(--color-accent); }
+.btn-nav {
+  background: transparent; border: none;
+  color: var(--color-text-main);
+  font: var(--font-body-md); font-weight: 500;
+  letter-spacing: .05em;
+  cursor: pointer;
+  padding: 12px 16px;              /* 44px以上のタップ領域 */
+  min-height: 44px;
+}
+.btn-nav.btn-next { color: var(--color-cta); font-weight: 700; }
+.btn-nav[disabled] { color: var(--color-text-muted); opacity: .45; cursor: not-allowed; }
+.btn-nav.is-hidden { visibility: hidden; }
+
+/* ==========================================================
+   6. 選択肢UI（02 .insurance-check-opt / .contact-time-opt の指定を流用）
+   ========================================================== */
+.q-block {
+  background: #FFF;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.q-label {
+  font: var(--font-body-md);
+  font-size: 15.5px;
+  font-weight: 700;
+  line-height: 1.5;
+  display: flex; align-items: baseline; gap: 8px;
+}
+.q-no {
+  flex: 0 0 auto;
+  font-size: 12px; font-weight: 700;
+  color: var(--color-accent);
+  border: 1px solid rgba(184,134,85,.4);
+  border-radius: 999px;
+  padding: 1px 9px;
+  letter-spacing: .06em;
+}
+.opt-list { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.opt-list.cols-2 { grid-template-columns: 1fr 1fr; }
+.opt-list.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.opt-list.cols-4 { grid-template-columns: repeat(4, 1fr); }
+.opt {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: #FFF;
+  font: var(--font-body-md);
+  color: var(--color-text-main);
+  cursor: pointer;
+  min-height: 52px;                /* タップ対象44px以上 */
+}
+.opt input[type="radio"], .opt input[type="checkbox"] {
+  width: 22px; height: 22px;
+  accent-color: var(--color-cta);
+  flex-shrink: 0;
+}
+.opt:has(input:checked) { border-color: var(--color-cta); background: var(--color-sel-bg); }
+.opt:has(input:checked) span { font-weight: 700; }
+.opt:has(input:disabled) { opacity: .6; cursor: default; }
+/* 免許証の色チップ（情報としての色。ブランド色ではない） */
+.color-chip { width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(0,0,0,.18); flex-shrink: 0; }
+.chip-green { background: #4C9A4F; }
+.chip-blue  { background: #2E6FD9; }
+.chip-gold  { background: #D9B32C; }
+
+/* 入力部品（02 .mock-input / .mock-select / .bootstrap-select を流用） */
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field-label { font: var(--font-body-md); font-size: 13px; color: var(--color-text-muted); letter-spacing: .04em; }
+.field-label .req {
+  display: inline-block; margin-left: 6px;
+  font-size: 10px; font-weight: 500; letter-spacing: .08em;
+  color: var(--color-accent);
+  border: 1px solid rgba(184,134,85,.4);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+.f-input, .f-select, .f-textarea {
+  min-height: 48px;
+  width: 100%;
+  border: 1px solid var(--color-border);
+  background: #FFF;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font: var(--font-body-md);
+  color: var(--color-text-main);
+  outline: none;
+}
+.f-textarea { min-height: 84px; resize: vertical; line-height: 1.6; }
+.f-input:focus, .f-select:focus, .f-textarea:focus { border-color: var(--color-cta); }
+/* 必須未入力のエラー表示（カンプに無い追加。色は 02 のエラー赤を流用） */
+.f-input.is-invalid, .f-select.is-invalid { border-color: var(--color-alert); background: rgba(232,62,37,.04); }
+.field-error { font: 400 12.5px/1.5 var(--font-stack); color: var(--color-alert); font-weight: 700; }
+
+/* ボタン（02 .btn-confirm-accordion / .btn-outline / .btn-text を流用） */
+.btn-primary {
+  background: var(--color-cta);
+  border: 1px solid var(--color-cta);
+  color: #FFF;
+  padding: 16px 28px;
+  border-radius: 8px;
+  font: var(--font-body-md); font-size: 15.5px; font-weight: 700;
+  letter-spacing: .08em;
+  cursor: pointer;
+  min-height: 56px;
+}
+.btn-primary:hover { background: var(--color-cta-pressed); border-color: var(--color-cta-pressed); }
+.btn-primary[disabled] {
+  background: var(--color-text-muted); border-color: var(--color-text-muted);
+  opacity: .5; cursor: not-allowed;
+}
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
+  padding: 12px 20px;
+  border-radius: 8px;
+  font: var(--font-body-md);
+  cursor: pointer;
+  min-height: 44px;
+}
+.btn-outline:hover { background: var(--color-accent); color: #FFF; }
+.btn-text {
+  background: transparent; border: none;
+  color: var(--color-text-muted);
+  font: var(--font-body-md); font-size: 13.5px;
+  text-decoration: underline; text-underline-offset: 3px;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+/* ==========================================================
+   7. 分岐で出し分けるブロック（状態が見えるようにする）
+   ========================================================== */
+.cond-block {
+  border: 1px dashed rgba(184,134,85,.55);
+  border-radius: 10px;
+  padding: 12px 14px 14px;
+  background: rgba(184,134,85,.05);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.cond-block.is-hidden { display: none; }            /* 条件を満たさないときは非表示（JSがこのclassを操作する） */
+.cond-tag {
+  align-self: flex-start;
+  font: 700 10.5px/1 var(--font-stack);
+  letter-spacing: .08em;
+  color: var(--color-accent);
+  background: #FFF;
+  border: 1px solid rgba(184,134,85,.45);
+  border-radius: 999px;
+  padding: 5px 10px;
+}
+
+/* 「営業マン確認要」フラグ（02のトースト赤 #E83E25 を流用） */
+.flag-notice {
+  display: none;
+  align-items: flex-start; gap: 8px;
+  border-left: 4px solid var(--color-alert);
+  background: rgba(232,62,37,.06);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font: var(--font-body-md); font-size: 13.5px;
+  color: var(--color-text-main);
+}
+.flag-notice.is-active { display: flex; }
+.flag-notice .flag-mark {
+  flex: 0 0 auto;
+  font-size: 11px; font-weight: 700; letter-spacing: .06em;
+  color: #FFF; background: var(--color-alert);
+  border-radius: 4px; padding: 2px 7px;
+}
+
+/* 担当者だけが入力する欄の目印 */
+.staff-tag {
+  display: inline-block;
+  font-size: 10px; font-weight: 700; letter-spacing: .08em;
+  color: #FFF; background: var(--color-text-muted);
+  border-radius: 4px; padding: 2px 7px; margin-left: 8px;
+}
+/* 「あとN問お答えください」（次へ進めない理由を出す。カンプに無い追加） */
+.need-answer {
+  font: var(--font-body-md); font-size: 13px; font-weight: 700;
+  color: var(--color-alert);
+  text-align: center;
+}
+.need-answer:empty { display: none; }
+
+/* ==========================================================
+   8. 画面ごとの個別レイアウト
+   ========================================================== */
+/* --- 事前設定：2カラムフォーム --- */
+.setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; }
+.setup-grid .span-2 { grid-column: 1 / -1; }
+/* 生年月日（西暦・月・日）は横1行に並べる（縦向き820pxでも収まる） */
+.birth-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px 14px; }
+.setup-card {
+  background: #FFF; border: 1px solid var(--color-border);
+  border-radius: 10px; padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.setup-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.setup-timestamp { font: var(--font-body-md); font-size: 13px; color: var(--color-text-muted); }
+
+/* --- トップ：センター寄せ（02 phase-1 と同じ構え） --- */
+.top-wrap { flex: 1; display: flex; align-items: center; justify-content: center; }
+.top-inner { max-width: 620px; text-align: center; display: flex; flex-direction: column; gap: 16px; align-items: center; }
+.brand-logo { width: 190px; height: auto; display: block; margin: 0 auto 4px; }
+.customer-greeting {
+  font: var(--font-heading-lg); font-size: 20px;
+  color: var(--color-accent); letter-spacing: .1em;
+}
+.top-desc { font: var(--font-body-md); font-size: 16px; line-height: 1.9; }
+
+/* --- 必要書類：02のアコーディオンをそのまま流用（class名も .accordion-item / .open 継承） --- */
+.accordion-group { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+.accordion-item { background: #FFF; border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden; }
+.accordion-header {
+  width: 100%;
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 14px 16px;
+  min-height: 56px;
+  background: transparent; border: none;
+  cursor: pointer; text-align: left;
+  color: var(--color-text-main);
+}
+.accordion-title { font: var(--font-heading-lg); font-size: 16.5px; }
+.accordion-title .doc-cond {
+  display: block;
+  font: 400 11.5px/1.4 var(--font-stack);
+  color: var(--color-text-muted);
+  margin-top: 3px;
+  letter-spacing: .02em;
+}
+.accordion-icon { font-size: 20px; color: var(--color-accent); transition: transform .3s ease; flex: 0 0 auto; }
+.accordion-item.open .accordion-icon { transform: rotate(45deg); }
+.accordion-content { max-height: 0; overflow: hidden; opacity: 0; transition: max-height .35s ease, opacity .35s ease, padding .35s ease; padding: 0 16px; }
+.accordion-item.open .accordion-content { max-height: 560px; opacity: 1; padding: 0 16px 16px; }
+
+/* 書類見本（ダミー図） */
+.doc-sample {
+  border: 1px solid rgba(138,126,115,.4);
+  border-radius: 6px;
+  background: #FCFBF8;
+  padding: 12px 16px 16px;
+  display: flex; flex-direction: column; gap: 8px;
+  max-width: 460px;
+}
+/* 「見本（ダミー）」の明示。アコーディオンは overflow:hidden のため枠外に出さない */
+.doc-sample-badge {
+  align-self: flex-start;
+  font: 700 10.5px/1 var(--font-stack); letter-spacing: .1em;
+  color: #FFF; background: var(--color-text-muted);
+  border-radius: 999px; padding: 5px 10px;
+}
+.doc-sample-title { font: 700 13px/1.4 var(--font-stack); letter-spacing: .1em; text-align: center; color: var(--color-text-muted); }
+.doc-line { height: 9px; border-radius: 3px; background: var(--color-placeholder); }
+.doc-line.w-90 { width: 90%; } .doc-line.w-70 { width: 70%; } .doc-line.w-50 { width: 50%; } .doc-line.w-35 { width: 35%; }
+.doc-stamp {
+  align-self: flex-end;
+  width: 54px; height: 54px; border-radius: 50%;
+  border: 2px dashed rgba(138,126,115,.5);
+  display: flex; align-items: center; justify-content: center;
+  font: 700 10px/1.2 var(--font-stack); color: var(--color-text-muted); text-align: center;
+}
+.doc-note { font: var(--font-body-md); font-size: 12.5px; color: var(--color-text-muted); }
+
+/* --- 約款同意：横向きは2カラム（02 phase-6 の grid 構えを踏襲） --- */
+.terms-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 14px; align-items: start; }
+.panel {
+  background: #FFF; border: 1px solid var(--color-border); border-radius: 10px;
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0;
+}
+.panel-title { font: var(--font-heading-lg); font-size: 15px; letter-spacing: .03em; }
+.panel-desc { font: var(--font-body-md); font-size: 12.5px; color: var(--color-text-muted); }
+.store-badge {
+  align-self: flex-start;
+  font: 700 11.5px/1 var(--font-stack); letter-spacing: .06em;
+  color: var(--color-accent); background: rgba(184,134,85,.08);
+  border: 1px solid rgba(184,134,85,.4); border-radius: 999px; padding: 6px 12px;
+}
+.terms-body {
+  border: 1px solid var(--color-border); border-radius: 6px;
+  background: #FCFBF8;
+  padding: 12px 14px;
+  height: 260px; overflow-y: auto;
+  font: var(--font-body-md); font-size: 13px; line-height: 1.85;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.terms-body[hidden] { display: none; }
+.terms-body h5 { font-size: 13px; font-weight: 700; }
+/* 署名（02 .signature-container / #signature-pad を流用） */
+.sign-area { display: flex; flex-direction: column; gap: 8px; }
+.sign-box { background: #FFF; padding: 2px; border: 1px solid var(--color-border); height: 190px; }
+.sign-box canvas { width: 100%; height: 100%; display: block; background: #F8F9FA; touch-action: none; }
+.sign-hint { font: var(--font-body-md); font-size: 12.5px; color: var(--color-text-muted); text-align: center; }
+.sign-area.is-signed .sign-hint { color: var(--color-cta); font-weight: 700; }
+
+/* --- 今後の流れ --- */
+.flow-grid { display: grid; grid-template-columns: 1.25fr .85fr; gap: 14px; align-items: start; }
+.flow-steps { display: flex; flex-direction: column; gap: 10px; }
+.flow-step { display: flex; gap: 12px; align-items: flex-start; }
+.flow-num {
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%;
+  background: var(--color-accent); color: #FFF;
+  display: flex; align-items: center; justify-content: center;
+  font: 700 13px/1 var(--font-stack);
+}
+.flow-text { font: var(--font-body-md); }
+.flow-text b { display: block; font-size: 15px; margin-bottom: 2px; }
+/* ダミーQR（02 .qr-placeholder を流用。実QRは作らない） */
+.qr-placeholder {
+  width: 170px; height: 170px;
+  background: #FFF; border: 2px solid var(--color-accent);
+  border-radius: 12px; margin: 0 auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  color: var(--color-text-muted);
+}
+.qr-grid {
+  width: 96px; height: 96px;
+  display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr); gap: 3px;
+}
+.qr-grid i { background: var(--color-placeholder); border-radius: 2px; }
+.qr-grid i.on { background: var(--color-text-muted); }
+.qr-caption { font: 700 11px/1.3 var(--font-stack); letter-spacing: .08em; }
+
+/* --- 最終確認 --- */
+.final-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 14px; align-items: start; }
+.final-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.kv-list { display: flex; flex-direction: column; }
+.kv-row {
+  display: flex; gap: 12px; align-items: baseline;
+  padding: 7px 0; border-bottom: 1px dashed rgba(184,134,85,.18);
+  font: var(--font-body-md); font-size: 13.5px;
+}
+.kv-row:last-child { border-bottom: none; }
+.kv-row dt { flex: 0 0 150px; color: var(--color-text-muted); font-size: 12.5px; }
+.kv-row dd { flex: 1 1 auto; min-width: 0; word-break: break-word; }
+/* 未確認のあいだだけ「要確認」バッジを出す（消し込み後は外す。カンプは消し込み後の見た目が未定義だったため） */
+.kv-row.has-flag dd::after {
+  content: '要確認';
+  display: inline-block; margin-left: 8px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .06em;
+  color: #FFF; background: var(--color-alert);
+  border-radius: 4px; padding: 2px 7px;
+}
+.section-head {
+  font: 700 12px/1.4 var(--font-stack); letter-spacing: .1em;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 5px; margin-top: 10px;
+}
+.section-head:first-child { margin-top: 0; }
+/* 営業マン確認要の消し込み */
+.flag-list { display: flex; flex-direction: column; gap: 8px; }
+.flag-item {
+  display: flex; align-items: center; gap: 12px;
+  border: 1px solid rgba(232,62,37,.45);
+  background: rgba(232,62,37,.05);
+  border-radius: 8px; padding: 10px 12px;
+  min-height: 60px;
+}
+.flag-item .flag-body { flex: 1 1 auto; min-width: 0; font: var(--font-body-md); font-size: 13.5px; }
+.flag-item .flag-body small { display: block; color: var(--color-text-muted); font-size: 12px; }
+.flag-item .btn-clear {
+  flex: 0 0 auto; min-height: 44px; padding: 10px 14px;
+  border: 1px solid var(--color-alert); background: #FFF; color: var(--color-alert);
+  border-radius: 6px; font: 700 13px/1 var(--font-stack); cursor: pointer;
+}
+.flag-item .btn-clear[disabled] { opacity: .5; cursor: not-allowed; }
+.flag-item.is-cleared { border-color: var(--color-border); background: var(--color-placeholder); opacity: .75; }
+.flag-item.is-cleared .flag-body { color: var(--color-text-muted); text-decoration: line-through; }
+.flag-item.is-cleared .flag-body small { text-decoration: none; }
+.flag-item.is-cleared .btn-clear { border-color: var(--color-border); color: var(--color-text-muted); background: transparent; }
+.flag-item.is-cleared::before { content: '✓'; color: var(--color-accent); font-weight: 700; font-size: 18px; }
+.flag-remain { font: var(--font-body-md); font-size: 13px; color: var(--color-alert); font-weight: 700; }
+.flag-remain.is-done { color: var(--color-accent); }
+.final-actions { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+.final-actions .note { font: var(--font-body-md); font-size: 12.5px; color: var(--color-text-muted); text-align: center; }
+
+/* トースト（02 styles.html の .toast を流用。署名エリア外に書こうとしたときの案内などに使う） */
+.toast {
+  position: fixed;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  background: var(--color-text-main);
+  color: #FFF;
+  padding: 10px 22px;
+  border-radius: 24px;
+  font: var(--font-body-md);
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  z-index: 100;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.error {
+  background: #E83E25;
+  color: #FFF;
+  font-weight: 600;
+  white-space: normal;
+  max-width: min(90vw, 460px);
+  text-align: center;
+  line-height: 1.5;
+  border-radius: 14px;
+}
+
+/* ==========================================================
+   9. レスポンシブ（iPad横1024×768 ／ iPad縦820×1180 の両対応）
+   横スクロールを出さないため、狭いときは全て1カラムへ落とす
+   ========================================================== */
+@media (max-width: 900px) {
+  .terms-grid, .flow-grid, .final-grid { grid-template-columns: 1fr; }
+  .setup-grid { grid-template-columns: 1fr; }
+  .kv-row dt { flex-basis: 128px; }
+}
+@media (max-width: 620px) {
+  .opt-list.cols-3, .opt-list.cols-4 { grid-template-columns: 1fr 1fr; }
+  .birth-grid { grid-template-columns: 1fr 1fr; }
+  .demo-jump { grid-template-columns: repeat(2, 1fr); }
+}
+/* 横向き（高さが低い）ときは余白を締めて1画面に収める */
+@media (max-height: 800px) {
+  .screen { padding: 12px 20px 18px; }
+  .screen-inner { gap: 11px; }
+  .screen-title { font-size: 21px; }
+  .terms-body { height: 220px; }
+  .sign-box { height: 158px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============ モック明示の帯（全画面共通・常時表示） ============ -->
+<div class="mock-banner">
+  操作イメージ確認用モック（表示内容・書類は仮です）
+  <button class="demo-toggle" id="demo-toggle" type="button">デモ操作</button>
+  <div class="demo-panel" id="demo-panel">
+    <h4>画面ジャンプ（確認用・本番には出しません）</h4>
+    <div class="demo-jump" id="demo-jump"></div>
+    <p class="demo-note">グレーの画面は、いまの事前設定（下取り・車庫証明）では通らない画面です。</p>
+    <button class="demo-reset" id="demo-reset" type="button">入力をリセット（画面を読み込み直す）</button>
+  </div>
+</div>
+
+<!-- ============ ステータスバー（02 .status-bar 継承。経路に合わせて段数が変わる） ============ -->
+<header class="status-bar">
+  <div class="status-steps" id="status-steps"></div>
+</header>
+
+<main class="app-main">
+
+  <!-- =========================================================
+       画面1：事前設定（担当者が入力）
+       ========================================================= -->
+  <section class="screen active" id="screen-setup" data-step="1" data-label="事前設定">
+    <div class="screen-inner">
+      <h1 class="screen-title">事前設定<span class="staff-tag">担当者が入力</span></h1>
+      <p class="screen-sub">この画面はご契約の準備です。入力して保存すると、お客様にお渡しする画面へ進みます。</p>
+
+      <div class="setup-card">
+        <div class="setup-grid">
+          <div class="field">
+            <label class="field-label" for="cs-no">CS番号<span class="req">必須</span></label>
+            <input class="f-input" id="cs-no" type="text" inputmode="numeric" pattern="[0-9]*" value="000000" autocomplete="off" data-dummy="true" data-numeric="true" data-bind="setup.csNo">
+            <p class="field-error" data-error-for="csNo" hidden></p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="cust-name">お客様名<span class="req">必須</span></label>
+            <input class="f-input" id="cust-name" type="text" value="テスト 太郎" autocomplete="off" data-dummy="true" data-bind="setup.custName">
+            <p class="field-error" data-error-for="custName" hidden></p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="store">店舗<span class="req">必須</span></label>
+            <select class="f-select" id="store" data-bind="setup.store"></select>
+            <p class="field-error" data-error-for="store" hidden></p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="staff">担当者<span class="req">必須</span></label>
+            <select class="f-select" id="staff" data-bind="setup.staff"></select>
+            <p class="field-error" data-error-for="staff" hidden></p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="sales-type">販売区分<span class="req">必須</span></label>
+            <select class="f-select" id="sales-type" data-bind="setup.salesType"></select>
+            <p class="field-error" data-error-for="salesType" hidden></p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="car-type">種別（今回ご購入のお車）<span class="req">必須</span></label>
+            <select class="f-select" id="car-type" data-bind="setup.carType">
+              <option value="軽">軽</option>
+              <option value="普通" selected>普通</option>
+            </select>
+            <p class="field-error" data-error-for="carType" hidden></p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="ownership">所有権（今回ご購入のお車）<span class="req">必須</span></label>
+            <select class="f-select" id="ownership" data-bind="setup.ownership">
+              <option value="本人">本人</option>
+              <option value="信販会社" selected>信販会社</option>
+            </select>
+            <p class="field-error" data-error-for="ownership" hidden></p>
+          </div>
+          <div class="field">
+            <span class="field-label">下取り確認<span class="req">必須</span></span>
+            <div class="opt-list cols-2" data-group="tradein">
+              <label class="opt"><input type="radio" name="tradein" value="有" checked data-bind="setup.tradein"><span>有</span></label>
+              <label class="opt"><input type="radio" name="tradein" value="無" data-bind="setup.tradein"><span>無</span></label>
+            </div>
+            <p class="field-error" data-error-for="tradein" hidden></p>
+          </div>
+
+          <!-- 下取り＝有のときだけ出る条件ブロック（is-hidden で出し分け） -->
+          <div class="cond-block span-2" id="setup-tradein-detail" data-show-when="setup.tradein=有">
+            <span class="cond-tag">下取り＝「有」のときだけ表示</span>
+            <div class="setup-grid">
+              <div class="field">
+                <label class="field-label" for="tradein-model">下取り車種<span class="req">必須</span></label>
+                <input class="f-input" id="tradein-model" type="text" value="ダミー車種" autocomplete="off" data-dummy="true" data-bind="setup.tradeinModel">
+                <p class="field-error" data-error-for="tradeinModel" hidden></p>
+              </div>
+              <div class="field">
+                <label class="field-label" for="tradein-no">下取りナンバー（4桁）<span class="req">必須</span></label>
+                <input class="f-input" id="tradein-no" type="text" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" value="0000" autocomplete="off" data-dummy="true" data-numeric="true" data-bind="setup.tradeinNo">
+                <p class="field-error" data-error-for="tradeinNo" hidden></p>
+              </div>
+            </div>
+          </div>
+
+          <div class="field span-2">
+            <span class="field-label">車庫証明確認<span class="req">必須</span></span>
+            <div class="opt-list cols-2" data-group="garage">
+              <label class="opt"><input type="radio" name="garage" value="有" checked data-bind="setup.garage"><span>有</span></label>
+              <label class="opt"><input type="radio" name="garage" value="無" data-bind="setup.garage"><span>無</span></label>
+            </div>
+            <p class="field-error" data-error-for="garage" hidden></p>
+          </div>
+        </div>
+
+        <div class="setup-footer">
+          <div>
+            <p class="setup-timestamp" id="setup-timestamp">受付日時：保存した時刻を記録します</p>
+            <p class="field-error" id="setup-summary" hidden></p>
+          </div>
+          <button class="btn-primary" type="button" id="btn-save-setup">保存してはじめる</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       画面2：トップ（ここからお客様が操作）
+       ========================================================= -->
+  <section class="screen" id="screen-top" data-step="2" data-label="トップ">
+    <div class="screen-inner top-wrap">
+      <div class="top-inner">
+        <img class="brand-logo" src="family_logo.png" alt="株式会社ファミリー">
+        <p class="customer-greeting"><span id="top-cust-name">お客様</span> 様</p>
+        <h1 class="screen-title">ご契約ありがとうございます。</h1>
+        <p class="top-desc">
+          納車までに必要な書類をご案内させていただくために、<br>
+          情報の入力をお願いいたします。
+        </p>
+        <button class="btn-primary" type="button" id="btn-start-input" style="min-width: 260px;">入力する</button>
+        <p class="screen-sub">画面の案内にそって、あてはまるものを選んでください。<br>あとから「戻る」で直すこともできます。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       画面3：下取り確認（下取り＝有のときだけ表示）
+       ========================================================= -->
+  <section class="screen" id="screen-tradein" data-step="3" data-label="下取り">
+    <div class="screen-inner">
+      <h1 class="screen-title">下取りのご確認</h1>
+      <p class="screen-lead">この画面では、いま お乗りのお車について、下取りのためにお伺いします。</p>
+
+      <div class="q-block" data-q="tradein-q1">
+        <p class="q-label"><span class="q-no">1</span>車検証に書かれている所有者は、ご本人ですか？</p>
+        <div class="opt-list cols-4">
+          <label class="opt"><input type="radio" name="tradein-q1" value="本人" data-bind="tradein.q1"><span>本人</span></label>
+          <label class="opt"><input type="radio" name="tradein-q1" value="ローン会社" data-bind="tradein.q1"><span>ローン会社</span></label>
+          <label class="opt"><input type="radio" name="tradein-q1" value="その他" data-bind="tradein.q1"><span>その他</span></label>
+          <label class="opt"><input type="radio" name="tradein-q1" value="わからない" data-bind="tradein.q1"><span>わからない</span></label>
+        </div>
+        <p class="flag-notice" data-flag-id="F1">
+          <span class="flag-mark">担当者確認</span>
+          <span>このあと担当者がくわしくお伺いします。そのままお進みください。</span>
+        </p>
+      </div>
+
+      <div class="q-block" data-q="tradein-q2">
+        <p class="q-label"><span class="q-no">2</span>車検証に書かれている使用者のご住所は、いま お住まいのご住所ですか？</p>
+        <div class="opt-list cols-3">
+          <label class="opt"><input type="radio" name="tradein-q2" value="はい" data-bind="tradein.q2"><span>はい</span></label>
+          <label class="opt"><input type="radio" name="tradein-q2" value="いいえ" data-bind="tradein.q2"><span>いいえ</span></label>
+          <label class="opt"><input type="radio" name="tradein-q2" value="わからない" data-bind="tradein.q2"><span>わからない</span></label>
+        </div>
+        <p class="flag-notice" data-flag-id="F2">
+          <span class="flag-mark">担当者確認</span>
+          <span>このあと担当者がくわしくお伺いします。そのままお進みください。</span>
+        </p>
+      </div>
+
+      <p class="need-answer" data-need-for="tradein"></p>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       画面4：車庫証明確認（車庫証明＝有のときだけ表示）
+       ========================================================= -->
+  <section class="screen" id="screen-garage" data-step="4" data-label="車庫証明">
+    <div class="screen-inner">
+      <h1 class="screen-title">車庫証明のご確認</h1>
+      <p class="screen-lead">この画面では、お車を停める場所を警察へ届け出るために必要なことをお伺いします。</p>
+
+      <div class="q-block" data-q="garage-q1">
+        <p class="q-label"><span class="q-no">1</span>駐車場のご住所は、いま お住まいのご住所と同じですか？</p>
+        <div class="opt-list cols-2">
+          <label class="opt"><input type="radio" name="garage-q1" value="はい" checked data-bind="garage.q1"><span>はい</span></label>
+          <label class="opt"><input type="radio" name="garage-q1" value="いいえ" data-bind="garage.q1"><span>いいえ</span></label>
+        </div>
+
+        <!-- ①＝いいえ のときだけ出る条件ブロック -->
+        <div class="cond-block is-hidden" id="garage-q1-sub" data-show-when="garage.q1=いいえ">
+          <span class="cond-tag">1で「いいえ」を選んだときだけ表示</span>
+          <p class="q-label"><span class="q-no">1-1</span>お住まいから駐車場まで、まっすぐ測って2km以内ですか？</p>
+          <div class="opt-list cols-3">
+            <label class="opt"><input type="radio" name="garage-q1-1" value="はい" data-bind="garage.q11"><span>はい</span></label>
+            <label class="opt"><input type="radio" name="garage-q1-1" value="いいえ" data-bind="garage.q11"><span>いいえ</span></label>
+            <label class="opt"><input type="radio" name="garage-q1-1" value="わからない" data-bind="garage.q11"><span>わからない</span></label>
+          </div>
+          <p class="flag-notice" data-flag-id="F3">
+            <span class="flag-mark">担当者確認</span>
+            <span>このあと担当者がくわしくお伺いします。そのままお進みください。</span>
+          </p>
+        </div>
+      </div>
+
+      <div class="q-block" data-q="garage-q2">
+        <p class="q-label"><span class="q-no">2</span>駐車場の土地の持ち主は、どなたですか？</p>
+        <div class="opt-list cols-3">
+          <label class="opt"><input type="radio" name="garage-q2" value="本人" checked data-bind="garage.q2"><span>本人</span></label>
+          <label class="opt"><input type="radio" name="garage-q2" value="配偶者" data-bind="garage.q2"><span>配偶者</span></label>
+          <label class="opt"><input type="radio" name="garage-q2" value="その他" data-bind="garage.q2"><span>その他</span></label>
+        </div>
+        <p class="flag-notice" data-flag-id="F4">
+          <span class="flag-mark">担当者確認</span>
+          <span>このあと担当者がくわしくお伺いします。そのままお進みください。</span>
+        </p>
+      </div>
+
+      <div class="q-block" data-q="garage-q3">
+        <p class="q-label"><span class="q-no">3</span>駐車場は、いま お乗りのお車と入れ替えになりますか？</p>
+        <div class="opt-list cols-2">
+          <label class="opt"><input type="radio" name="garage-q3" value="はい" checked data-bind="garage.q3"><span>はい</span></label>
+          <label class="opt"><input type="radio" name="garage-q3" value="いいえ" data-bind="garage.q3"><span>いいえ</span></label>
+        </div>
+      </div>
+
+      <p class="need-answer" data-need-for="garage"></p>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       画面5：任意保険加入確認（全てのお客様に表示）
+       ========================================================= -->
+  <section class="screen" id="screen-insurance" data-step="5" data-label="任意保険">
+    <div class="screen-inner">
+      <h1 class="screen-title">任意保険のご確認</h1>
+      <p class="screen-lead">この画面では、ご購入いただいたお車の任意保険についてお伺いします。</p>
+
+      <div class="q-block" data-q="ins-q1">
+        <p class="q-label"><span class="q-no">1</span>おもに運転される方は、どなたですか？</p>
+        <div class="opt-list cols-3">
+          <label class="opt"><input type="radio" name="ins-q1" value="本人" checked data-bind="insurance.q1"><span>本人</span></label>
+          <label class="opt"><input type="radio" name="ins-q1" value="ご家族" data-bind="insurance.q1"><span>ご家族</span></label>
+          <label class="opt"><input type="radio" name="ins-q1" value="その他" data-bind="insurance.q1"><span>その他</span></label>
+        </div>
+      </div>
+
+      <div class="q-block" data-q="ins-q2">
+        <p class="q-label"><span class="q-no">2</span>その方の生年月日を教えてください。</p>
+        <div class="birth-grid">
+          <div class="field">
+            <label class="field-label" for="birth-y">西暦</label>
+            <select class="f-select" id="birth-y" data-bind="insurance.birthY"><option value="">選んでください</option></select>
+          </div>
+          <div class="field">
+            <label class="field-label" for="birth-m">月</label>
+            <select class="f-select" id="birth-m" data-bind="insurance.birthM"><option value="">選んでください</option></select>
+          </div>
+          <div class="field">
+            <label class="field-label" for="birth-d">日</label>
+            <select class="f-select" id="birth-d" data-bind="insurance.birthD"><option value="">選んでください</option></select>
+          </div>
+        </div>
+        <p class="field-error" id="birth-error" hidden>選んだ日付が正しくありません。年・月・日をご確認ください。</p>
+      </div>
+
+      <div class="q-block" data-q="ins-q3">
+        <p class="q-label"><span class="q-no">3</span>その方の免許証の色を教えてください。</p>
+        <div class="opt-list cols-3">
+          <label class="opt"><input type="radio" name="ins-q3" value="グリーン" data-bind="insurance.q3"><span class="color-chip chip-green"></span><span>グリーン</span></label>
+          <label class="opt"><input type="radio" name="ins-q3" value="ブルー" data-bind="insurance.q3"><span class="color-chip chip-blue"></span><span>ブルー</span></label>
+          <label class="opt"><input type="radio" name="ins-q3" value="ゴールド" data-bind="insurance.q3"><span class="color-chip chip-gold"></span><span>ゴールド</span></label>
+        </div>
+      </div>
+
+      <div class="q-block" data-q="ins-q4">
+        <p class="q-label"><span class="q-no">4</span>月に15日以上、通勤や通学でお使いになりますか？</p>
+        <div class="opt-list cols-2">
+          <label class="opt"><input type="radio" name="ins-q4" value="はい" checked data-bind="insurance.q4"><span>はい</span></label>
+          <label class="opt"><input type="radio" name="ins-q4" value="いいえ" data-bind="insurance.q4"><span>いいえ</span></label>
+        </div>
+      </div>
+
+      <div class="q-block" data-q="ins-q5">
+        <p class="q-label"><span class="q-no">5</span>ほかに運転される可能性のある方はいらっしゃいますか？（あてはまるものをすべて選んでください）</p>
+        <div class="opt-list cols-4">
+          <label class="opt"><input type="checkbox" name="ins-q5" value="配偶者のみ" data-bind="insurance.q5"><span>配偶者のみ</span></label>
+          <label class="opt"><input type="checkbox" name="ins-q5" value="同居の家族" data-bind="insurance.q5"><span>同居のご家族</span></label>
+          <label class="opt"><input type="checkbox" name="ins-q5" value="その他" data-bind="insurance.q5"><span>その他</span></label>
+          <label class="opt"><input type="checkbox" name="ins-q5" value="他にいない" data-exclusive="true" data-bind="insurance.q5"><span>他にいない</span></label>
+        </div>
+      </div>
+
+      <div class="q-block" data-q="ins-memo">
+        <p class="q-label">営業マンのメモ<span class="staff-tag">担当者記入欄</span></p>
+        <textarea class="f-textarea" id="ins-memo" placeholder="お客様からお伺いした補足を入力（例：証券は後日ご持参）" data-bind="insurance.memo"></textarea>
+      </div>
+
+      <p class="need-answer" data-need-for="insurance"></p>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       画面6：必要書類一覧（ここまでの選択で出し分け。書類の中身は JS の DOC_RULES から描画）
+       ========================================================= -->
+  <section class="screen" id="screen-docs" data-step="6" data-label="必要書類">
+    <div class="screen-inner">
+      <h1 class="screen-title">ご用意いただく書類</h1>
+      <p class="screen-lead">
+        <span id="docs-cust-name">お客様</span> 様にお願いする書類を一覧で表示しております。<br>
+        見本を参照しながら、書類への署名・捺印をお願いいたします。
+      </p>
+      <p class="screen-sub">書類名を押すと見本が開きます。</p>
+      <div class="accordion-group" id="doc-list"></div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       画面7：約款同意（店舗ごとの約款＋電子サイン）
+       ========================================================= -->
+  <section class="screen" id="screen-terms" data-step="7" data-label="約款同意">
+    <div class="screen-inner wide">
+      <h1 class="screen-title">約款のご確認とご署名</h1>
+      <p class="screen-lead">約款をご確認のうえ、「お客様ご署名」の枠内にご署名をお願いいたします。</p>
+
+      <div class="terms-grid">
+        <section class="panel">
+          <span class="store-badge" id="terms-store-badge">約款</span>
+          <div id="terms-bodies"></div>
+          <p class="panel-desc">※事前設定で選んだ店舗の約款を表示します。</p>
+        </section>
+
+        <section class="panel">
+          <h3 class="panel-title">お客様ご署名</h3>
+          <p class="panel-desc">内容をご確認のうえ、下の枠内にご署名をお願いいたします。ご署名があると「次へ進む」が押せるようになります。</p>
+          <div class="sign-area is-empty" id="sign-area">
+            <div class="sign-box"><canvas id="sign-pad"></canvas></div>
+            <p class="sign-hint" id="sign-hint">ここに指またはタッチペンでご署名ください</p>
+            <button class="btn-text" type="button" id="btn-clear-sign">書き直す</button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       画面8：今後の流れ説明（1画面・ダミーQR）
+       ========================================================= -->
+  <section class="screen" id="screen-flow" data-step="8" data-label="今後の流れ">
+    <div class="screen-inner wide">
+      <h1 class="screen-title">ご納車までの流れ</h1>
+      <p class="screen-lead">ここからご納車までの流れをご案内します。ご不明な点は担当者へお気軽にお申し付けください。</p>
+
+      <div class="flow-grid">
+        <section class="panel">
+          <h3 class="panel-title">これからの流れ</h3>
+          <div class="flow-steps">
+            <div class="flow-step"><span class="flow-num">1</span><p class="flow-text"><b>書類のご用意</b>前の画面でご案内した書類をご準備ください。（ダミー文言）</p></div>
+            <div class="flow-step"><span class="flow-num">2</span><p class="flow-text"><b>書類のご提出</b>そろった書類を担当者までお渡しください。（ダミー文言）</p></div>
+            <div class="flow-step"><span class="flow-num">3</span><p class="flow-text"><b>登録のお手続き</b>当社で登録のお手続きを行います。（ダミー文言）</p></div>
+            <div class="flow-step"><span class="flow-num">4</span><p class="flow-text"><b>ご納車日のご連絡</b>準備ができ次第、担当者よりご連絡いたします。（ダミー文言）</p></div>
+            <div class="flow-step"><span class="flow-num">5</span><p class="flow-text"><b>ご納車</b>当日はお車の説明をさせていただきます。（ダミー文言）</p></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h3 class="panel-title">LINEのお友だち登録</h3>
+          <p class="panel-desc">ご連絡がスムーズになります。よろしければご登録をお願いいたします。</p>
+          <div class="qr-placeholder">
+            <div class="qr-grid" aria-hidden="true">
+              <i class="on"></i><i class="on"></i><i></i><i class="on"></i><i class="on"></i>
+              <i class="on"></i><i></i><i class="on"></i><i></i><i class="on"></i>
+              <i></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i>
+              <i class="on"></i><i></i><i class="on"></i><i></i><i class="on"></i>
+              <i class="on"></i><i class="on"></i><i></i><i class="on"></i><i class="on"></i>
+            </div>
+            <span class="qr-caption">ダミーQR（読み取れません）</span>
+          </div>
+          <p class="panel-desc">※実際のQRコードは後で差し替えます。これは図形のダミーです。</p>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       画面9：最終確認（入力一覧＋確認要の消し込み＋実施記録）
+       ========================================================= -->
+  <section class="screen" id="screen-final" data-step="9" data-label="最終確認">
+    <div class="screen-inner wide">
+      <h1 class="screen-title">最終確認<span class="staff-tag">担当者が操作</span></h1>
+      <p class="screen-lead">入力内容をご確認ください。担当者が確認する項目をすべてチェックすると、完了できます。</p>
+
+      <div class="final-grid">
+        <!-- 左：受付情報＋回答一覧（JSが state から描画） -->
+        <section class="panel" id="final-detail"></section>
+
+        <!-- 右：確認要の消し込み＋実施記録＋完了 -->
+        <div class="final-side">
+          <section class="panel">
+            <h3 class="panel-title">担当者が確認する項目</h3>
+            <p class="panel-desc">お客様の回答から自動で挙がった項目です。すべて確認すると完了できます。</p>
+            <div class="flag-list" id="flag-list"></div>
+            <p class="flag-remain" id="flag-remain"></p>
+          </section>
+
+          <section class="panel">
+            <h3 class="panel-title">実施記録</h3>
+            <p class="panel-desc">ご案内した内容にチェックを入れてください。</p>
+            <div class="opt-list" id="record-list">
+              <label class="opt"><input type="checkbox" name="record" value="必要書類を説明した" data-bind="records"><span>必要書類を説明した</span></label>
+              <label class="opt"><input type="checkbox" name="record" value="約款を説明した" data-bind="records"><span>約款を説明した</span></label>
+              <label class="opt"><input type="checkbox" name="record" value="今後の流れを説明した" data-bind="records"><span>今後の流れを説明した</span></label>
+              <label class="opt"><input type="checkbox" name="record" value="LINE友だち登録を案内した" data-bind="records"><span>LINE友だち登録を案内した</span></label>
+            </div>
+          </section>
+
+          <div class="final-actions">
+            <button class="btn-primary" id="btn-complete" type="button" disabled>完了する</button>
+            <p class="note" id="complete-note"></p>
+            <button class="btn-outline" id="btn-restart" type="button" hidden>最初に戻る（入力をリセット）</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============ フッターナビ（02 .app-footer 継承） ============ -->
+<footer class="app-footer">
+  <div class="footer-left"><button class="btn-nav is-hidden" id="btn-prev" type="button">戻る</button></div>
+  <div class="progress-indicator" id="progress-indicator"></div>
+  <div class="footer-right"><button class="btn-nav btn-next" id="btn-next" type="button">次へ進む</button></div>
+</footer>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ==========================================================
+     1. ダミーデータ（全て架空。実マスタ・実約款・実書類は使わない）
+     ========================================================== */
+
+  // 店舗・担当者・販売区分（モックでは実マスタに接続しない）
+  const MASTER = {
+    stores: ['サンプル店A', 'サンプル店B', 'サンプル店C'],
+    staffs: ['テスト担当A', 'テスト担当B', 'テスト担当C'],
+    salesTypes: ['販売区分ダミーA', '販売区分ダミーB', '販売区分ダミーC', '販売区分ダミーD']
+  };
+
+  // 店舗ごとの約款ダミー（キー＝店舗名。店舗ごとに条数・文面を変えて、切替わりが分かるようにしている）
+  const TERMS = {
+    'サンプル店A': [
+      ['第1条（このダミー約款について）', 'これは表示確認のためのダミー文章です。実際の約款は、後日、店舗ごとの正式な文面に差し替えます。'],
+      ['第2条（お引き渡しについて）', 'ダミー文章。お車のお引き渡しは、必要な書類がすべてそろい、登録手続きが完了したあとに行います。'],
+      ['第3条（必要書類のご用意）', 'ダミー文章。ご用意いただく書類は前の画面のとおりです。ご不明な点は担当者へお申し付けください。'],
+      ['第4条（個人情報のお取り扱い）', 'ダミー文章。お伺いした内容は、ご契約とご納車の手続きのために利用します。'],
+      ['第5条（ダミー条文）', 'ダミー文章。スクロールの見え方を確認するための行です。ダミー文章。ダミー文章。ダミー文章。']
+    ],
+    'サンプル店B': [
+      ['第1条（サンプル店B のダミー約款について）', 'サンプル店B 用のダミー約款です。店舗ごとに文面が切り替わることを確かめるための仮テキストです。'],
+      ['第2条（お引き渡しについて）', 'サンプル店B のダミー文章。お引き渡しの日時は、担当者とご相談のうえ決めさせていただきます。'],
+      ['第3条（お支払いについて）', 'サンプル店B のダミー文章。お支払いの方法は、ご契約のときにご案内したとおりです。'],
+      ['第4条（ダミー条文）', 'サンプル店B のダミー文章。スクロールの見え方を確認するための行です。ダミー文章。ダミー文章。']
+    ],
+    'サンプル店C': [
+      ['第1条（サンプル店C のダミー約款について）', 'サンプル店C 用のダミー約款です。店舗ごとに文面が切り替わることを確かめるための仮テキストです。'],
+      ['第2条（保証について）', 'サンプル店C のダミー文章。保証の内容は、店舗ごとに異なる場合があります。'],
+      ['第3条（ダミー条文）', 'サンプル店C のダミー文章。ここは店舗Cだけの文面です。ダミー文章。']
+    ]
+  };
+
+  // 必要書類の出し分けルール（データ表）。現場の書類チェックリストで差し替える前提。
+  //   when : 'always'／{ all:[…] }／{ any:[…] }／{ key:'回答キー', eq:'値' }／{ key:'回答キー', in:['値',…] }
+  //   回答キーは buildAnswers() が返すもの（type・ownership・tradein・garage・tradein.q1・tradein.q2・garage.q1・garage.q11・garage.q2・garage.q3）
+  //   ※通らない画面の回答は buildAnswers() が返さないので、古い回答がルールに紛れ込まない
+  const NOTE_STD  = '※見本はイメージです。実際の書類・記載例とは異なります。';
+  const NOTE_FORM = '※見本はイメージです。実際の様式・記載例とは異なります。';
+  const NOTE_CITY = '※お住まいの市区町村で取得いただく書類です。見本はイメージです。';
+  const DOC_RULES = [
+    { id: 'order-sheet', title: 'ご注文書（契約書）', condText: 'すべてのお客様', when: 'always',
+      sample: { head: 'ご 注 文 書', lines: ['w-90', 'w-70', 'w-90', 'w-50', 'w-35'], stamp: true,
+                note: '※見本はイメージです。実際の書類・記載例とは異なります（現場の書類チェックリストで差し替えます）。' } },
+    { id: 'power-of-attorney', title: '委任状', condText: 'すべてのお客様', when: 'always',
+      sample: { head: '委 任 状', lines: ['w-90', 'w-50', 'w-70'], stamp: true, note: NOTE_STD } },
+    { id: 'seal-certificate', title: '印鑑証明書', condText: '種別が「普通」のとき',
+      when: { key: 'type', eq: '普通' },
+      sample: { head: '印 鑑 登 録 証 明 書', lines: ['w-70', 'w-90', 'w-50'], stamp: false, note: NOTE_CITY } },
+    { id: 'residence-certificate', title: '住民票', condText: '種別が「軽」、または下取り②が「いいえ／わからない」のとき',
+      when: { any: [ { key: 'type', eq: '軽' }, { key: 'tradein.q2', in: ['いいえ', 'わからない'] } ] },
+      sample: { head: '住 民 票', lines: ['w-90', 'w-70', 'w-50'], stamp: false, note: NOTE_CITY } },
+    { id: 'garage-application', title: '車庫証明 申請書類一式', condText: '車庫証明が「有」かつ種別が「普通」のとき',
+      when: { all: [ { key: 'garage', eq: '有' }, { key: 'type', eq: '普通' } ] },
+      sample: { head: '自動車保管場所証明申請書（見本）', lines: ['w-90', 'w-90', 'w-35'], stamp: true, note: NOTE_FORM } },
+    { id: 'self-declaration', title: '自認書', condText: '車庫証明が「有」かつ土地の持ち主が「本人」のとき',
+      when: { all: [ { key: 'garage', eq: '有' }, { key: 'garage.q2', eq: '本人' } ] },
+      sample: { head: '保管場所使用権原疎明書面（自認書）', lines: ['w-70', 'w-90'], stamp: true, note: NOTE_FORM } },
+    { id: 'storage-consent', title: '保管場所使用承諾書', condText: '車庫証明が「有」かつ土地の持ち主が「配偶者／その他」のとき',
+      when: { all: [ { key: 'garage', eq: '有' }, { key: 'garage.q2', in: ['配偶者', 'その他'] } ] },
+      sample: { head: '保管場所使用承諾書（見本）', lines: ['w-90', 'w-70', 'w-50'], stamp: true, note: NOTE_FORM } },
+    { id: 'transfer-certificate', title: '譲渡証明書', condText: '下取りが「有」のとき',
+      when: { key: 'tradein', eq: '有' },
+      sample: { head: '譲 渡 証 明 書', lines: ['w-90', 'w-50'], stamp: true, note: NOTE_STD } },
+    { id: 'ownership-release', title: '所有権解除関係書類', condText: '下取りが「有」かつ車検証の所有者が「ローン会社」のとき',
+      when: { all: [ { key: 'tradein', eq: '有' }, { key: 'tradein.q1', eq: 'ローン会社' } ] },
+      sample: { head: '所有権解除関係書類（見本）', lines: ['w-90', 'w-70', 'w-35'], stamp: false, note: NOTE_STD } },
+    { id: 'loan-documents', title: 'ローン関係書類', condText: '所有権が「信販会社」のとき',
+      when: { key: 'ownership', eq: '信販会社' },
+      sample: { head: 'ローン関係書類（見本）', lines: ['w-90', 'w-70', 'w-35'], stamp: false, note: NOTE_STD } },
+    { id: 'insurance-documents', title: '任意保険 加入関係書類', condText: 'すべてのお客様', when: 'always',
+      sample: { head: '任意保険 加入関係書類（見本）', lines: ['w-90', 'w-50', 'w-70'], stamp: false, note: NOTE_STD } }
+  ];
+
+  // 「営業マン確認要」フラグの条件（データ表）。仮置き。
+  const FLAG_RULES = [
+    { id: 'F1', key: 'tradein.q1',  values: ['その他', 'わからない'],   label: '下取り① 車検証の所有者',   hint: 'お客様に直接ヒアリング' },
+    { id: 'F2', key: 'tradein.q2',  values: ['いいえ', 'わからない'],   label: '下取り② 使用者の住所',     hint: '何個前のご住所かをヒアリング' },
+    { id: 'F3', key: 'garage.q11',  values: ['いいえ', 'わからない'],   label: '車庫①-1 直線距離',         hint: '駐車場の場所を確認' },
+    { id: 'F4', key: 'garage.q2',   values: ['その他'],                 label: '車庫② 土地の持ち主',       hint: '土地の持ち主をヒアリング' }
+  ];
+
+  // 実施記録（4項目）をすべて必須にするか（仮置きで true）
+  const REQUIRE_ALL_RECORDS = true;
+
+  // 生年月日プルダウンの範囲（原付免許が取れる16歳〜1930年）
+  const BIRTH_YEAR_MIN = 1930;
+  const BIRTH_YEAR_MAX = new Date().getFullYear() - 16;
+
+  /* ==========================================================
+     2. 状態（メモリ上の state オブジェクトのみ。ブラウザの保存領域は使わない）
+     ========================================================== */
+  const state = {
+    setup: { csNo: '', custName: '', store: '', staff: '', salesType: '', carType: '', ownership: '',
+             tradein: '', tradeinModel: '', tradeinNo: '', garage: '', receivedAt: null },
+    tradein: { q1: '', q2: '' },
+    garage: { q1: '', q11: '', q2: '', q3: '' },
+    insurance: { q1: '', birthY: '', birthM: '', birthD: '', q3: '', q4: '', q5: [], memo: '' },
+    records: [],          // 実施記録でチェックされた項目
+    flagCleared: {},      // 消し込み済みフラグ：{ 'F1:その他': '2026/09/19 10:41' }
+    signedStore: '',      // 署名した時点の店舗（店舗が変わったら署名を無効にするため）
+    completed: false
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
+  function mk(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function getPath(path) { return path.split('.').reduce((o, k) => o[k], state); }
+  function setPath(path, value) {
+    const keys = path.split('.');
+    const last = keys.pop();
+    keys.reduce((o, k) => o[k], state)[last] = value;
+  }
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function fmtDate(d) { return d.getFullYear() + '/' + pad2(d.getMonth() + 1) + '/' + pad2(d.getDate()); }
+  function fmtMinute(d) { return fmtDate(d) + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
+  function fmtSecond(d) { return fmtMinute(d) + ':' + pad2(d.getSeconds()); }
+
+  /* ==========================================================
+     3. 画面の経路（下取り有無 × 車庫証明有無の4パターン）
+        画面遷移表：トップ→（下取り有なら3／無で車庫有なら4／どちらも無なら5）…
+        ＝ 通る画面を並べた配列で表し、次へ・戻るは配列の前後を辿る（戻るは自動的に分岐を逆にたどる）
+     ========================================================== */
+  function getRoute() {
+    const route = ['setup', 'top'];
+    if (state.setup.tradein === '有') route.push('tradein');
+    if (state.setup.garage === '有') route.push('garage');
+    return route.concat(['insurance', 'docs', 'terms', 'flow', 'final']);
+  }
+  const ALL_SCREENS = ['setup', 'top', 'tradein', 'garage', 'insurance', 'docs', 'terms', 'flow', 'final'];
+  const screenEl = (id) => $('screen-' + id);
+  const screenLabel = (id) => screenEl(id).dataset.label;
+  let currentId = 'setup';
+
+  /* ==========================================================
+     4. 回答の集約とルール評価
+     ========================================================== */
+  // ルール評価に使う回答表。通らない画面・出ていない設問の回答は入れない（古い回答が残っても評価に漏れない）
+  function buildAnswers() {
+    const s = state, a = {};
+    a['type'] = s.setup.carType;
+    a['ownership'] = s.setup.ownership;
+    a['tradein'] = s.setup.tradein;
+    a['garage'] = s.setup.garage;
+    if (s.setup.tradein === '有') {
+      a['tradein.q1'] = s.tradein.q1;
+      a['tradein.q2'] = s.tradein.q2;
+    }
+    if (s.setup.garage === '有') {
+      a['garage.q1'] = s.garage.q1;
+      if (s.garage.q1 === 'いいえ') a['garage.q11'] = s.garage.q11;
+      a['garage.q2'] = s.garage.q2;
+      a['garage.q3'] = s.garage.q3;
+    }
+    return a;
+  }
+
+  // 条件式の評価（ルール表を評価する唯一の場所）
+  function evalCond(cond, ans) {
+    if (cond === 'always') return true;
+    if (cond.all) return cond.all.every((c) => evalCond(c, ans));
+    if (cond.any) return cond.any.some((c) => evalCond(c, ans));
+    const v = ans[cond.key];
+    if (cond.in) return cond.in.indexOf(v) >= 0;
+    return v === cond.eq;
+  }
+  // 条件式を「garage=有 AND type=普通」の形の文字列にする（data-doc-rule 属性・確認用）
+  function condToText(cond, nested) {
+    if (cond === 'always') return 'always';
+    if (cond.all || cond.any) {
+      const text = (cond.all || cond.any).map((c) => condToText(c, true)).join(cond.all ? ' AND ' : ' OR ');
+      return nested ? '(' + text + ')' : text;
+    }
+    return cond.in ? cond.key + ' in(' + cond.in.join(',') + ')' : cond.key + '=' + cond.eq;
+  }
+
+  function activeDocs() {
+    const ans = buildAnswers();
+    return DOC_RULES.filter((r) => evalCond(r.when, ans));
+  }
+  // 立っているフラグ一覧。key は「フラグID:回答値」（回答が変わったら再確認になるよう値まで含める）
+  function activeFlags() {
+    const ans = buildAnswers();
+    return FLAG_RULES
+      .filter((r) => r.values.indexOf(ans[r.key]) >= 0)
+      .map((r) => ({ rule: r, value: ans[r.key], key: r.id + ':' + ans[r.key] }));
+  }
+
+  /* ==========================================================
+     5. 入力の取り込み（DOMの入力欄 → state。data-bind="setup.csNo" のような状態パスで結ぶ）
+        画面は作り直さず .active の付け替えだけなので、戻っても入力は DOM 側にも残る
+     ========================================================== */
+  function applyControl(el) {
+    const path = el.dataset.bind;
+    if (!path) return;
+    if (el.type === 'checkbox') {
+      const arr = getPath(path);
+      const at = arr.indexOf(el.value);
+      if (el.checked && at < 0) arr.push(el.value);
+      if (!el.checked && at >= 0) arr.splice(at, 1);
+    } else if (el.type === 'radio') {
+      if (el.checked) setPath(path, el.value);
+    } else {
+      setPath(path, el.value);
+    }
+  }
+  // 「他にいない」と他の選択肢は同時に選べない（仮置き）
+  function handleExclusive(el) {
+    if (el.type !== 'checkbox') return;
+    const group = $$('input[type="checkbox"][data-bind="' + el.dataset.bind + '"]');
+    const none = group.find((c) => c.dataset.exclusive === 'true');
+    if (!none) return;
+    if (el === none && el.checked) {
+      group.forEach((c) => { if (c !== none) { c.checked = false; applyControl(c); } });
+    } else if (el !== none && el.checked && none.checked) {
+      none.checked = false;
+      applyControl(none);
+    }
+  }
+  // 全角数字を半角にし、数字以外を除く（CS番号・下取りナンバー）
+  function toDigits(text) {
+    return text.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/[^0-9]/g, '');
+  }
+  function onInput(e) {
+    const el = e.target;
+    if (!el.dataset || !el.dataset.bind) return;
+    if (el.dataset.numeric === 'true' && !e.isComposing) {
+      const digits = toDigits(el.value);
+      if (digits !== el.value) el.value = digits;
+    }
+    applyControl(el);
+    clearFieldError(el.dataset.bind);
+    afterChange();
+  }
+  function onChange(e) {
+    const el = e.target;
+    if (!el.dataset || !el.dataset.bind) return;
+    handleExclusive(el);
+    applyControl(el);
+    clearFieldError(el.dataset.bind);
+    afterChange();
+  }
+  document.addEventListener('input', onInput);
+  document.addEventListener('change', onChange);
+
+  /* ==========================================================
+     6. 表示の同期（分岐ブロック・フラグ通知・ステータスバー・ナビ）
+     ========================================================== */
+  // data-show-when="状態パス=値" のブロックを出し分ける
+  function syncCond() {
+    $$('[data-show-when]').forEach((b) => {
+      const pair = b.dataset.showWhen.split('=');
+      b.classList.toggle('is-hidden', getPath(pair[0]) !== pair[1]);
+    });
+  }
+  // お客様側画面の「担当者確認」案内
+  function syncFlagNotices() {
+    const ids = activeFlags().map((f) => f.rule.id);
+    $$('.flag-notice').forEach((n) => n.classList.toggle('is-active', ids.indexOf(n.dataset.flagId) >= 0));
+  }
+
+  let builtRouteKey = '';
+  function buildStatusBar(route) {
+    const steps = $('status-steps');
+    steps.textContent = '';
+    route.forEach((id, i) => {
+      const step = mk('div', 'status-step');
+      step.dataset.target = 'screen-' + id;
+      step.appendChild(mk('div', 'step-dot'));
+      step.appendChild(mk('span', 'step-label', screenLabel(id)));
+      steps.appendChild(step);
+      if (i < route.length - 1) steps.appendChild(mk('div', 'step-line'));
+    });
+    const dots = $('progress-indicator');
+    dots.textContent = '';
+    route.forEach(() => dots.appendChild(mk('div', 'dot')));
+  }
+  function paintProgress(route) {
+    const idx = route.indexOf(currentId);
+    $$('#status-steps .status-step').forEach((st, i) => {
+      st.classList.toggle('active', i === idx);
+      st.classList.toggle('completed', i < idx);
+    });
+    $$('#progress-indicator .dot').forEach((d, i) => d.classList.toggle('active', i === idx));
+  }
+
+  // 画面ごとの未回答数（0なら「次へ進む」を押せる）
+  function isValidBirth(y, m, d) {
+    if (!y || !m || !d) return false;
+    const dt = new Date(+y, +m - 1, +d);
+    return dt.getFullYear() === +y && dt.getMonth() === +m - 1 && dt.getDate() === +d;
+  }
+  function countMissing(id) {
+    const s = state;
+    if (id === 'tradein') return [s.tradein.q1, s.tradein.q2].filter((v) => !v).length;
+    if (id === 'garage') {
+      const g = s.garage;
+      return [g.q1, g.q1 === 'いいえ' ? g.q11 : 'skip', g.q2, g.q3].filter((v) => !v).length;
+    }
+    if (id === 'insurance') {
+      const i = s.insurance;
+      return [i.q1, isValidBirth(i.birthY, i.birthM, i.birthD) ? 'ok' : '', i.q3, i.q4, i.q5.length ? 'ok' : ''].filter((v) => !v).length;
+    }
+    if (id === 'terms') return (sigPad && sigPad.hasInk()) ? 0 : 1;
+    return 0;
+  }
+  function updateNeedAnswer() {
+    $$('.need-answer').forEach((p) => {
+      const n = countMissing(p.dataset.needFor);
+      p.textContent = n > 0 ? 'あと' + n + '問、お答えください' : '';
+    });
+    // 生年月日：3つ選んだのに日付として成立しないとき
+    const i = state.insurance;
+    const bad = !!(i.birthY && i.birthM && i.birthD) && !isValidBirth(i.birthY, i.birthM, i.birthD);
+    $('birth-error').hidden = !bad;
+  }
+
+  function updateNav() {
+    const route = getRoute();
+    const idx = route.indexOf(currentId);
+    $('btn-prev').classList.toggle('is-hidden', idx <= 0);
+    // 最後の画面だけ「次へ」を隠す（カンプどおり）。事前設定では画面内の「保存してはじめる」と同じ動き
+    const next = $('btn-next');
+    next.classList.toggle('is-hidden', currentId === 'final');
+    next.disabled = countMissing(currentId) > 0;
+  }
+
+  function updateJumpPanel() {
+    const route = getRoute();
+    $$('#demo-jump button').forEach((b) => { b.disabled = route.indexOf(b.dataset.target) < 0; });
+  }
+
+  // 状態が変わるたびに呼ぶ
+  function afterChange() {
+    syncCond();
+    syncFlagNotices();
+    refreshChrome();
+    if (currentId === 'final') syncComplete();
+  }
+  function refreshChrome() {
+    const route = getRoute();
+    const key = route.join(',');
+    if (key !== builtRouteKey) { buildStatusBar(route); builtRouteKey = key; }
+    paintProgress(route);
+    updateNav();
+    updateNeedAnswer();
+    updateJumpPanel();
+  }
+
+  /* ==========================================================
+     7. 画面の切替（画面を作り直さず .active を付け替える）
+     ========================================================== */
+  function showScreen(id) {
+    currentId = id;
+    ALL_SCREENS.forEach((sid) => {
+      const on = sid === id;
+      screenEl(sid).classList.toggle('active', on);
+      if (on) screenEl(sid).scrollTop = 0;
+    });
+    const hook = { top: enterTop, docs: enterDocs, terms: enterTerms, final: enterFinal }[id];
+    if (hook) hook();
+    refreshChrome();
+  }
+  function goRelative(delta) {
+    const route = getRoute();
+    const target = route[route.indexOf(currentId) + delta];
+    if (target) showScreen(target);
+  }
+  function goNext() {
+    // 事前設定：フッターの「次へ」も保存ボタンと同じ検証・保存を通す（検証を飛ばして進めないため）
+    if (currentId === 'setup') { saveSetup(); return; }
+    // 約款画面：実ピクセルで署名の有無を確かめてから進む（02の完了時チェックと同じ）
+    if (currentId === 'terms' && !sigPad.verifyInk()) {
+      sigPad.clear();
+      showToast('ご署名が読み取れませんでした。恐れ入りますが、もう一度ご署名をお願いします', 'error');
+      return;
+    }
+    goRelative(1);
+  }
+  $('btn-prev').addEventListener('click', () => goRelative(-1));
+  $('btn-next').addEventListener('click', goNext);
+  $('btn-start-input').addEventListener('click', () => goRelative(1));
+
+  /* ==========================================================
+     8. 画面1：事前設定（必須検証・保存でタイムスタンプ取得）
+     ========================================================== */
+  const SETUP_SELECTS = [['store', '店舗'], ['staff', '担当者'], ['salesType', '販売区分'], ['carType', '種別'], ['ownership', '所有権']];
+  function validateSetup() {
+    const s = state.setup, err = {};
+    if (!/^[0-9]+$/.test(s.csNo)) err.csNo = 'CS番号を数字で入力してください';
+    if (!s.custName.trim()) err.custName = 'お客様名を入力してください';
+    SETUP_SELECTS.forEach((p) => { if (!s[p[0]]) err[p[0]] = p[1] + 'を選んでください'; });
+    if (!s.tradein) err.tradein = '下取り確認を選んでください';
+    if (s.tradein === '有') {
+      if (!s.tradeinModel.trim()) err.tradeinModel = '下取り車種を入力してください';
+      if (!/^[0-9]{4}$/.test(s.tradeinNo)) err.tradeinNo = '下取りナンバーを数字4桁で入力してください';
+    }
+    if (!s.garage) err.garage = '車庫証明確認を選んでください';
+    return err;
+  }
+  function showSetupErrors(err) {
+    $$('.field-error[data-error-for]').forEach((p) => {
+      const msg = err[p.dataset.errorFor];
+      p.textContent = msg || '';
+      p.hidden = !msg;
+    });
+    $$('[data-bind^="setup."]').forEach((c) => c.classList.toggle('is-invalid', !!err[c.dataset.bind.slice(6)]));
+    const n = Object.keys(err).length;
+    const sum = $('setup-summary');
+    sum.textContent = n ? '未入力・入力もれが' + n + '件あります。赤い項目をご確認ください。' : '';
+    sum.hidden = !n;
+  }
+  // 入力し直した欄のエラーだけ消す
+  function clearFieldError(path) {
+    if (path.indexOf('setup.') !== 0) return;
+    const key = path.slice(6);
+    const p = document.querySelector('.field-error[data-error-for="' + key + '"]');
+    if (p) { p.textContent = ''; p.hidden = true; }
+    $$('[data-bind="' + path + '"]').forEach((c) => c.classList.remove('is-invalid'));
+  }
+  function saveSetup() {
+    const err = validateSetup();
+    showSetupErrors(err);
+    if (Object.keys(err).length) {
+      const first = document.querySelector('#screen-setup .field-error[data-error-for]:not([hidden])');
+      if (first) first.scrollIntoView({ block: 'center' });
+      return;
+    }
+    // 保存のたびに受付日時を取り直す（仮置き）
+    state.setup.receivedAt = new Date();
+    $('setup-timestamp').textContent = '受付日時：' + fmtSecond(state.setup.receivedAt) + '（保存しました）';
+    goRelative(1);
+  }
+  $('btn-save-setup').addEventListener('click', saveSetup);
+
+  /* ==========================================================
+     9. 画面2：トップ／画面6：必要書類
+     ========================================================== */
+  function customerName() { return state.setup.custName.trim() || 'お客様'; }
+  function enterTop() { $('top-cust-name').textContent = customerName(); }
+
+  function buildDocItem(rule, open) {
+    const item = mk('div', 'accordion-item' + (open ? ' open' : ''));
+    item.dataset.docId = rule.id;
+    item.dataset.docRule = condToText(rule.when);
+
+    const head = mk('button', 'accordion-header');
+    head.type = 'button';
+    const title = mk('span', 'accordion-title', rule.title);
+    title.appendChild(mk('span', 'doc-cond', rule.condText));
+    head.appendChild(title);
+    head.appendChild(mk('span', 'accordion-icon', '+'));
+    head.addEventListener('click', () => item.classList.toggle('open'));
+    item.appendChild(head);
+
+    const body = mk('div', 'accordion-content');
+    const sample = mk('div', 'doc-sample');
+    sample.appendChild(mk('span', 'doc-sample-badge', '見本（ダミー）'));
+    sample.appendChild(mk('p', 'doc-sample-title', rule.sample.head));
+    rule.sample.lines.forEach((w) => sample.appendChild(mk('div', 'doc-line ' + w)));
+    if (rule.sample.stamp) sample.appendChild(mk('div', 'doc-stamp', 'ご印鑑'));
+    body.appendChild(sample);
+    body.appendChild(mk('p', 'doc-note', rule.sample.note));
+    item.appendChild(body);
+    return item;
+  }
+  function enterDocs() {
+    $('docs-cust-name').textContent = customerName();
+    const list = $('doc-list');
+    list.textContent = '';
+    activeDocs().forEach((rule, i) => list.appendChild(buildDocItem(rule, i === 0)));
+  }
+
+  /* ==========================================================
+     10. 画面7：約款同意＋電子サイン（02 の createSignaturePad を移植）
+     ========================================================== */
+  const SIG_MASTER_SCALE    = 2;          // master は表示の2倍解像度（描き戻しを常に「縮小」にして潰れを防ぐ）
+  const SIG_MASTER_MAX_W    = 2400;       // iOS の Canvas 面積制限に余裕を持たせるための上限
+  const SIG_MASTER_MAX_H    = 1200;
+  const SIG_LINE_WIDTH      = 3;
+  const SIG_LINE_COLOR      = '#121212';
+  const SIG_INACTIVE_BG     = '#ECECEC';  // 非署名エリア（回転後のレターボックス帯）
+  const SIG_BLANK_STRIDE    = 3;          // 白紙判定の走査間隔（px）
+  const SIG_WHITE_LEVEL     = 240;        // これ未満のR/G/Bがあれば「インクあり」
+  const SIG_OUTSIDE_MESSAGE = '白い枠の中にご署名ください';
+
+  // 縦横比を保った収まり方を計算するだけの純関数（DOM非依存）
+  function computeFitTransform(masterW, masterH, viewW, viewH) {
+    const scale = Math.min(viewW / masterW, viewH / masterH);
+    return {
+      scale,
+      offsetX: Math.round((viewW - masterW * scale) / 2),
+      offsetY: Math.round((viewH - masterH * scale) / 2)
+    };
+  }
+
+  // 署名パッド本体。表示用Canvasとは別に「署名の正本」master Canvas を持つので、
+  // 回転などで表示Canvasのサイズが変わっても、master から描き戻してインクが消えない
+  // （02 の実装を移植。書き出し用の exportDataUrl は、保存しないモックでは使わないため外した）
+  function createSignaturePad(options) {
+    const canvas = options.canvas;
+    if (!canvas) return null;
+    const ctx = canvas.getContext('2d');
+
+    const master = document.createElement('canvas');   // DOMには挿さない（署名の正本）
+    const mctx = master.getContext('2d');
+
+    let hasInk = false;
+    let initialized = false;
+    let isDrawing = false;
+    let view = { scale: 1, offsetX: 0, offsetY: 0 };
+    let lastPoint = null;
+
+    function fillMasterWhite() {
+      mctx.save();
+      mctx.setTransform(1, 0, 0, 1, 0, 0);
+      mctx.fillStyle = '#FFFFFF';
+      mctx.fillRect(0, 0, master.width, master.height);
+      mctx.restore();
+    }
+    // インクが無いときだけ呼ぶ：現在の表示サイズに合わせて基準を作り直す（余白を出さないため）
+    function rebaseMaster(w, h) {
+      master.width  = Math.min(SIG_MASTER_MAX_W, Math.max(200, Math.floor(w * SIG_MASTER_SCALE)));
+      master.height = Math.min(SIG_MASTER_MAX_H, Math.max(100, Math.floor(h * SIG_MASTER_SCALE)));
+      fillMasterWhite();
+    }
+    // 表示座標 → master座標 の写像を mctx の transform に設定する
+    // （表示Canvasと master にまったく同じ描画命令を流せる。線幅も自動で換算される）
+    function computeView() {
+      view = computeFitTransform(master.width, master.height, canvas.width, canvas.height);
+      mctx.setTransform(1 / view.scale, 0, 0, 1 / view.scale, -view.offsetX / view.scale, -view.offsetY / view.scale);
+    }
+    // 表示Canvasを master から描き直す（非署名エリアは帯色で塗る）
+    function render() {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = SIG_INACTIVE_BG;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(master, view.offsetX, view.offsetY, master.width * view.scale, master.height * view.scale);
+    }
+    // リサイズ（全経路の共通入口）
+    function resize() {
+      const box = options.measure();
+      if (!box || !box.width || !box.height) return false;
+      const changed = (!initialized || canvas.width !== box.width || canvas.height !== box.height);
+      if (!changed) return false;                       // サイズが同じなら何もしない（絵は無傷）
+      if (!hasInk) rebaseMaster(box.width, box.height); // インクが無いうちは基準を取り直す
+      canvas.width  = box.width;                        // ここで表示は白紙化するが…
+      canvas.height = box.height;
+      computeView();
+      render();                                         // 直後に master から描き戻すので消えない
+      initialized = true;
+      return true;
+    }
+    // 入力座標（CSS表示サイズとビットマップのズレを補正）
+    function pointFromEvent(e) {
+      const rect = canvas.getBoundingClientRect();
+      const cx = e.touches ? e.touches[0].clientX : e.clientX;
+      const cy = e.touches ? e.touches[0].clientY : e.clientY;
+      const sx = rect.width  ? (canvas.width  / rect.width)  : 1;
+      const sy = rect.height ? (canvas.height / rect.height) : 1;
+      return { x: (cx - rect.left) * sx, y: (cy - rect.top) * sy };
+    }
+    function isInsideActiveArea(p) {
+      return p.x >= view.offsetX && p.x <= view.offsetX + master.width  * view.scale &&
+             p.y >= view.offsetY && p.y <= view.offsetY + master.height * view.scale;
+    }
+    function applyStrokeStyle(c) {
+      c.lineWidth   = SIG_LINE_WIDTH;
+      c.lineCap     = 'round';
+      c.lineJoin    = 'round';
+      c.strokeStyle = SIG_LINE_COLOR;
+    }
+    function strokeSegment(c, a, b) {
+      applyStrokeStyle(c);
+      c.beginPath();
+      c.moveTo(a.x, a.y);
+      c.lineTo(b.x, b.y);
+      c.stroke();
+    }
+    function setInk(v) {
+      if (hasInk === v) return;
+      hasInk = v;
+      if (typeof options.onInkChange === 'function') options.onInkChange(hasInk);
+    }
+    // 余白帯（非署名エリア）で始まった場合は描き始めない＋案内
+    function begin(e) {
+      const p = pointFromEvent(e);
+      if (!isInsideActiveArea(p)) {
+        isDrawing = false;
+        lastPoint = null;
+        showToast(SIG_OUTSIDE_MESSAGE);
+        return;
+      }
+      isDrawing = true;
+      lastPoint = p;
+      setInk(true);
+    }
+    function extend(e) {
+      if (!isDrawing || !lastPoint) return;
+      const p = pointFromEvent(e);
+      strokeSegment(ctx,  lastPoint, p);
+      strokeSegment(mctx, lastPoint, p);
+      lastPoint = p;
+    }
+    function end() { isDrawing = false; lastPoint = null; }
+
+    const startHandler = (e) => { e.preventDefault(); begin(e); };
+    const moveHandler  = (e) => { if (!isDrawing) return; e.preventDefault(); extend(e); };
+    const endHandler   = () => { end(); };
+    canvas.addEventListener('mousedown', startHandler);
+    canvas.addEventListener('mousemove', moveHandler);
+    canvas.addEventListener('mouseup', endHandler);
+    canvas.addEventListener('mouseout', endHandler);
+    canvas.addEventListener('touchstart', startHandler, { passive: false });
+    canvas.addEventListener('touchmove', moveHandler, { passive: false });
+    canvas.addEventListener('touchend', endHandler);
+
+    function clear() { fillMasterWhite(); render(); setInk(false); }
+    function verifyInk() {                       // 「次へ」のときだけ呼ぶ（実ピクセル走査）
+      if (!master.width || !master.height) return false;
+      const d = mctx.getImageData(0, 0, master.width, master.height).data;
+      for (let y = 0; y < master.height; y += SIG_BLANK_STRIDE) {
+        for (let x = 0; x < master.width; x += SIG_BLANK_STRIDE) {
+          const i = (y * master.width + x) * 4;
+          if (d[i] < SIG_WHITE_LEVEL || d[i + 1] < SIG_WHITE_LEVEL || d[i + 2] < SIG_WHITE_LEVEL) return true;
+        }
+      }
+      return false;
+    }
+    return { resize, clear, hasInk: () => hasInk, verifyInk };
+  }
+
+  // 署名エリアの実サイズにフィットさせる（02 の計算式を移設）
+  function measureSignatureBox() {
+    const rect = $('sign-pad').parentElement.getBoundingClientRect();
+    const width = Math.max(200, rect.width - 4);
+    const parentH = rect.height;
+    let height;
+    if (parentH > 40) {
+      height = Math.max(140, parentH - 4);
+    } else {
+      height = Math.max(160, Math.min(240, window.innerHeight - 500));  // 親高さが取れない初期タイミング用
+    }
+    return { width: Math.floor(width), height: Math.floor(height) };
+  }
+
+  // 02 の showToast を移植
+  function showToast(message, type) {
+    const existing = document.querySelector('.toast');
+    if (existing) existing.remove();
+    const toast = document.createElement('div');
+    toast.className = 'toast' + (type === 'error' ? ' error' : '');
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('show'));
+    const duration = type === 'error' ? 6000 : 2500;
+    setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, duration);
+  }
+
+  let sigPad = null;
+  function onSignChange(ink) {
+    $('sign-area').classList.toggle('is-signed', ink);
+    $('sign-area').classList.toggle('is-empty', !ink);
+    $('sign-hint').textContent = ink ? 'ご署名を確認しました' : 'ここに指またはタッチペンでご署名ください';
+    state.signedStore = ink ? state.setup.store : '';
+    if (sigPad) { updateNav(); updateNeedAnswer(); }
+  }
+
+  // 店舗ごとの約款本文を組み立てる（全店舗分を作って、表示するものだけ hidden を外す）
+  function buildTerms() {
+    const wrap = $('terms-bodies');
+    MASTER.stores.forEach((store) => {
+      const body = mk('div', 'terms-body');
+      body.dataset.store = store;
+      body.hidden = true;
+      (TERMS[store] || []).forEach((clause) => {
+        body.appendChild(mk('h5', null, clause[0]));
+        body.appendChild(mk('p', null, clause[1]));
+      });
+      wrap.appendChild(body);
+    });
+  }
+  function enterTerms() {
+    const store = state.setup.store;
+    $$('#terms-bodies .terms-body').forEach((b) => { b.hidden = b.dataset.store !== store; });
+    $('terms-store-badge').textContent = store + ' の約款';
+    // 別の店舗の約款に署名したままにならないよう、店舗が変わっていたら署名を消す
+    if (sigPad.hasInk() && state.signedStore !== store) sigPad.clear();
+    // 画面が表示されてからサイズを確定させる（非表示のあいだは寸法が0のため）
+    sigPad.resize();
+    requestAnimationFrame(() => sigPad.resize());
+  }
+
+  /* ==========================================================
+     11. 画面9：最終確認（入力一覧・確認要の消し込み・実施記録・完了）
+     ========================================================== */
+  function kvSection(container, title, rows, flagsOpen) {
+    container.appendChild(mk('p', 'section-head', title));
+    const dl = mk('dl', 'kv-list');
+    rows.forEach((r) => {
+      // 未確認のフラグがある行にだけ「要確認」バッジを付ける
+      const flagged = !!r.flagId && flagsOpen.indexOf(r.flagId) >= 0;
+      const row = mk('div', 'kv-row' + (flagged ? ' has-flag' : ''));
+      if (r.flagId) row.dataset.flagId = r.flagId;
+      row.appendChild(mk('dt', null, r.label));
+      row.appendChild(mk('dd', null, r.value));
+      dl.appendChild(row);
+    });
+    container.appendChild(dl);
+  }
+  function orNone(v, none) { return v ? v : (none || '（未選択）'); }
+
+  function renderFinalDetail() {
+    const s = state, box = $('final-detail');
+    box.textContent = '';
+    const flagsOpen = activeFlags().filter((f) => !s.flagCleared[f.key]).map((f) => f.rule.id);
+    const docs = activeDocs();
+
+    const tradeinText = s.setup.tradein === '有'
+      ? '有（車種：' + s.setup.tradeinModel + '／ナンバー：' + s.setup.tradeinNo + '）' : orNone(s.setup.tradein);
+    kvSection(box, '受付情報', [
+      { label: '受付日時', value: s.setup.receivedAt ? fmtSecond(s.setup.receivedAt) : '未取得（事前設定を保存すると記録されます）' },
+      { label: 'CS番号', value: s.setup.csNo },
+      { label: 'お客様名', value: s.setup.custName },
+      { label: '店舗／担当者', value: s.setup.store + ' ／ ' + s.setup.staff },
+      { label: '販売区分', value: s.setup.salesType },
+      { label: '種別／所有権', value: s.setup.carType + ' ／ ' + s.setup.ownership },
+      { label: '下取り', value: tradeinText },
+      { label: '車庫証明', value: orNone(s.setup.garage) }
+    ], flagsOpen);
+
+    if (s.setup.tradein === '有') {
+      kvSection(box, '下取りのご確認', [
+        { label: '① 所有者はご本人か', value: orNone(s.tradein.q1), flagId: 'F1' },
+        { label: '② 使用者の住所は現住所か', value: orNone(s.tradein.q2), flagId: 'F2' }
+      ], flagsOpen);
+    }
+    if (s.setup.garage === '有') {
+      const rows = [{ label: '① 駐車場は現住所と同じか', value: orNone(s.garage.q1) }];
+      if (s.garage.q1 === 'いいえ') rows.push({ label: '①-1 直線距離2km以内か', value: orNone(s.garage.q11), flagId: 'F3' });
+      rows.push({ label: '② 土地の持ち主', value: orNone(s.garage.q2), flagId: 'F4' });
+      rows.push({ label: '③ 現在のお車と入れ替えか', value: orNone(s.garage.q3) });
+      kvSection(box, '車庫証明のご確認', rows, flagsOpen);
+    }
+    const i = s.insurance;
+    const birth = (i.birthY && i.birthM && i.birthD) ? i.birthY + '年' + i.birthM + '月' + i.birthD + '日' : '（未選択）';
+    kvSection(box, '任意保険のご確認', [
+      { label: '① おもに運転する方', value: orNone(i.q1) },
+      { label: '② 生年月日', value: birth },
+      { label: '③ 免許証の色', value: orNone(i.q3) },
+      { label: '④ 月15日以上の通勤・通学', value: orNone(i.q4) },
+      { label: '⑤ ほかに運転する方', value: i.q5.length ? i.q5.join('、') : '（未選択）' },
+      { label: '⑥ 営業マンのメモ', value: i.memo.trim() ? i.memo : '（未入力）' }
+    ], flagsOpen);
+
+    kvSection(box, '必要書類', [
+      { label: 'ご案内した書類', value: docs.length + '件（' + docs.map((d) => d.title).join('／') + '）' },
+      { label: '約款のご署名', value: (sigPad.hasInk() && s.signedStore) ? '受領済み（' + s.signedStore + ' の約款）' : '未署名' }
+    ], flagsOpen);
+  }
+
+  function renderFlagList() {
+    const list = $('flag-list');
+    list.textContent = '';
+    const flags = activeFlags();
+    if (!flags.length) {
+      list.appendChild(mk('p', 'panel-desc', '担当者が確認する項目はありません。'));
+      return;
+    }
+    flags.forEach((f) => {
+      const cleared = state.flagCleared[f.key];
+      const item = mk('div', 'flag-item ' + (cleared ? 'is-cleared' : 'is-open'));
+      item.dataset.flagId = f.rule.id;
+      const body = mk('p', 'flag-body', f.rule.label + '「' + f.value + '」');
+      body.appendChild(mk('small', null, f.rule.hint + (cleared ? '（' + cleared + ' 確認）' : '')));
+      const btn = mk('button', 'btn-clear', cleared ? '確認を取消' : '確認しました');
+      btn.type = 'button';
+      btn.disabled = state.completed;
+      btn.addEventListener('click', () => {
+        if (state.flagCleared[f.key]) delete state.flagCleared[f.key];
+        else state.flagCleared[f.key] = fmtMinute(new Date());
+        renderFlagList();
+        renderFinalDetail();
+        syncComplete();
+      });
+      item.appendChild(body);
+      item.appendChild(btn);
+      list.appendChild(item);
+    });
+  }
+
+  // 未確認の件数と、完了ボタンの可否（フラグ全件の消し込み＋実施記録）
+  function syncComplete() {
+    const flags = activeFlags();
+    const openFlags = flags.filter((f) => !state.flagCleared[f.key]).length;
+    const recTotal = $$('#record-list input[type="checkbox"]').length;
+    const recMissing = REQUIRE_ALL_RECORDS ? recTotal - state.records.length : 0;
+
+    const remain = $('flag-remain');
+    remain.textContent = !flags.length ? '' : (openFlags === 0 ? 'すべて確認しました' : '未確認が' + openFlags + '件あります');
+    remain.classList.toggle('is-done', openFlags === 0);
+
+    const btn = $('btn-complete');
+    const note = $('complete-note');
+    if (state.completed) {
+      btn.disabled = true;
+      btn.textContent = '完了しました';
+      note.textContent = 'モックのため、この内容は保存されません。';
+      return;
+    }
+    btn.textContent = '完了する';
+    btn.disabled = openFlags > 0 || recMissing > 0;
+    const notes = [];
+    if (openFlags > 0) notes.push('未確認の項目が' + openFlags + '件あります');
+    if (recMissing > 0) notes.push('実施記録が' + recMissing + '件チェックされていません');
+    note.textContent = notes.length ? notes.join('／') : '完了できます';
+  }
+
+  function setFinalLocked(locked) {
+    $$('#record-list input').forEach((c) => { c.disabled = locked; });
+    $('btn-restart').hidden = !locked;
+  }
+  function enterFinal() {
+    // 入力を直して戻ってきた場合に備え、通らなくなったフラグの消し込みは捨てる（再度立ったら再確認）
+    const keys = activeFlags().map((f) => f.key);
+    Object.keys(state.flagCleared).forEach((k) => { if (keys.indexOf(k) < 0) delete state.flagCleared[k]; });
+    state.completed = false;
+    setFinalLocked(false);
+    renderFinalDetail();
+    renderFlagList();
+    syncComplete();
+  }
+  $('btn-complete').addEventListener('click', () => {
+    state.completed = true;
+    setFinalLocked(true);
+    renderFlagList();
+    syncComplete();
+  });
+  $('btn-restart').addEventListener('click', () => location.reload());
+
+  /* ==========================================================
+     12. デモ操作（帯の右端。画面ジャンプ・入力リセット）
+     ========================================================== */
+  function buildJumpPanel() {
+    const jump = $('demo-jump');
+    ALL_SCREENS.forEach((id, i) => {
+      const b = mk('button', null, (i + 1) + '. ' + screenLabel(id));
+      b.type = 'button';
+      b.dataset.target = id;
+      b.addEventListener('click', () => { showScreen(id); $('demo-panel').classList.remove('open'); });
+      jump.appendChild(b);
+    });
+  }
+  $('demo-toggle').addEventListener('click', () => $('demo-panel').classList.toggle('open'));
+  $('demo-reset').addEventListener('click', () => location.reload());
+  document.addEventListener('click', (e) => {
+    const panel = $('demo-panel');
+    if (panel.classList.contains('open') && !panel.contains(e.target) && e.target !== $('demo-toggle')) panel.classList.remove('open');
+  });
+
+  /* ==========================================================
+     13. 初期化
+     ========================================================== */
+  function fillSelect(id, items) {
+    const sel = $(id);
+    items.forEach((v) => { const o = mk('option', null, v); o.value = v; sel.appendChild(o); });
+  }
+  function fillRange(id, from, to, suffix, descending) {
+    const sel = $(id);
+    const step = descending ? -1 : 1;
+    for (let v = from; descending ? v >= to : v <= to; v += step) {
+      const o = mk('option', null, v + suffix);
+      o.value = String(v);
+      sel.appendChild(o);
+    }
+  }
+
+  fillSelect('store', MASTER.stores);
+  fillSelect('staff', MASTER.staffs);
+  fillSelect('sales-type', MASTER.salesTypes);
+  fillRange('birth-y', BIRTH_YEAR_MAX, BIRTH_YEAR_MIN, '年', true);
+  fillRange('birth-m', 1, 12, '月', false);
+  fillRange('birth-d', 1, 31, '日', false);
+  buildTerms();
+  buildJumpPanel();
+
+  // 署名パッド
+  sigPad = createSignaturePad({
+    canvas: $('sign-pad'),
+    measure: measureSignatureBox,
+    onInkChange: onSignChange
+  });
+  window.addEventListener('resize', () => sigPad.resize());
+  window.addEventListener('orientationchange', () => setTimeout(() => sigPad.resize(), 150));
+  $('btn-clear-sign').addEventListener('click', () => sigPad.clear());
+
+  // 初期値（DOMに置いた既定値）を state に取り込んでから表示する
+  $$('[data-bind]').forEach(applyControl);
+  syncCond();
+  syncFlagNotices();
+  showScreen('setup');
+})();
+</script>
+</body>
+</html>
